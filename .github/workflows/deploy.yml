@@ -1,0 +1,32 @@
+name: Deploy server
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_ID: ${{ vars.CLOUDFLARE_DATABASE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Configure database
+        run: node scripts/configure-deployment.mjs
+      - run: pnpm test
+      - run: pnpm check
+      - run: pnpm build
+      - run: pnpm db:migrate
+      - name: Configure test accounts
+        env:
+          TEST_ACCOUNTS_JSON: ${{ secrets.TEST_ACCOUNTS_JSON }}
+        run: node scripts/upload-accounts.mjs
+      - run: pnpm exec wrangler deploy --config dist/server/wrangler.json
