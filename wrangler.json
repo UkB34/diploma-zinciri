@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "diploma-zinciri",
-      "database_id": "00000000-0000-4000-8000-000000000000",
+      "database_id": "a423b5e5-6343-4b62-a8ba-21648a5ccd17",
       "migrations_dir": "drizzle"
     }
   ]
