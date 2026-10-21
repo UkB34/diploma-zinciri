@@ -5,3 +5,7 @@ dist/
 .env*
 *.tsbuildinfo
 accounts.local.json
+signing-secrets.local.json
+
+.next/
+node_modules
