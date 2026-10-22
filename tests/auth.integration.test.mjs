@@ -22,13 +22,13 @@ const get=async(cookie)=>{globalThis.__headers=new Headers({cookie});return work
 const signatures=await import(moduleUrl('app/api/signatures/route.ts'));
 const transcripts=await import(moduleUrl('app/api/transcripts/route.ts'));
 const signingKeys=Object.fromEntries(await Promise.all(['registrar','faculty','rector','central'].map(async r=>[r,await generateSigningKey()])));
-Object.assign(globalThis.__env,{SIGNING_KEYS_JSON:JSON.stringify(signingKeys),ROLE_EMAILS_JSON:JSON.stringify({ogrenci_isleri:'registrar@example.com',fakulte:'faculty@example.com',rektorluk:'rector@example.com',merkez:'central@example.com'}),RESEND_API_KEY:'test-only',MAIL_FROM:'test@example.com',APP_ORIGIN:'https://test.example'});
+Object.assign(globalThis.__env,{SIGNING_KEYS_JSON:JSON.stringify(signingKeys),ROLE_EMAILS_JSON:JSON.stringify({ogrenci_isleri:'registrar@example.com',fakulte:'faculty@example.com',rektorluk:'rector@example.com',merkez:'central@example.com'}),BREVO_API_KEY:'test-only',MAIL_FROM:'test@example.com',APP_ORIGIN:'https://test.example'});
 let mail=[],mailFails=false;
-globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.resend.com/emails');if(mailFails)return Response.json({error:'test'},{status:403});mail.push(JSON.parse(options.body));return Response.json({id:'mail-test'});};
+globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.brevo.com/v3/smtp/email');if(mailFails)return Response.json({error:'test'},{status:403});assert.equal(options.headers['api-key'],'test-only');const body=JSON.parse(options.body);assert.deepEqual(body.sender,{name:'Diploma Zinciri',email:'test@example.com'});assert.equal(typeof body.to[0].email,'string');assert.ok(body.textContent.includes('/imzala#token='));mail.push(body);return Response.json({id:'mail-test'});};
 const login=async username=>{const r=await auth.POST(request({username,password:'test-only-password'}));assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0];};
 const state=async cookie=>(await get(cookie)).json();
 const act=async(cookie,body)=>{const s=await state(cookie);return workflow.POST(request({...body,revision:s.revision},cookie));};
-const mailToken=()=>mail.at(-1).text.match(/token=([a-f0-9]{64})/)[1];
+const mailToken=()=>mail.at(-1).textContent.match(/token=([a-f0-9]{64})/)[1];
 test('PDF, dört hesap, e-posta daveti, tek kullanım ve imzasız geçiş engeli',async()=>{
  assert.equal((await get('')).status,401);
  assert.equal((await auth.POST(request({username:'bolum',password:'test-only-password'}))).status,401);

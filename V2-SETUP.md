@@ -16,7 +16,7 @@ Akış: öğrenci işleri → fakülte → rektörlük → merkez. Her rolün d�
 {"ogrenci_isleri":"OGRENCI_ISLERI_ADRESI","fakulte":"FAKULTE_ADRESI","rektorluk":"REKTORLUK_ADRESI","merkez":"MERKEZ_ADRESI"}
 ```
 
-4. E-posta adaptörü Resend HTTP API kullanır. `RESEND_API_KEY` Secret, `MAIL_FROM` gönderici adresi ve `APP_ORIGIN=https://diploma-zinciri.bllufuk04.workers.dev` tanımlayın. `MAIL_FROM`, servis tarafından izin verilen/doğrulanmış gönderici olmalıdır. Resend’in deneme göndericisi keyfî alıcılara gönderim için yeterli olmayabilir; dört gerçek alıcıya gönderim için gönderici alan adı doğrulamasını ve hesabın alıcı kısıtlarını kontrol edin. Servis hesabı/alan adı kurulumu bu kod değişikliğiyle yapılmaz. Başka servis seçilirse yalnızca `lib/mail.ts` adaptörünü değiştirin.
+4. E-posta adaptörü Brevo HTTP API kullanır. `BREVO_API_KEY` Cloudflare çalışma ortamında Secret olarak tanımlanır. `MAIL_FROM` ve `APP_ORIGIN` Wrangler `vars` alanında tutulur. Gönderici Brevo’da doğrulanmalıdır. Gmail göndereni için teslimat/spam uyarıları vardır; gerçek teslimi dört alıcıyla ayrıca sınayın. API kabulü teslim edildiği anlamına gelmez. Ağ hatasında otomatik yeniden gönderim yapılmaz; yeniden davet eski bağlantıyı geçersiz kılar. Anahtarı GitHub’a veya build ayarlarına yazmayın.
 5. Eksik yapılandırmada onay ilerlemez; açıklayıcı hata gösterilir. Sahte e-posta veya ekranda davet bağlantısı veren üretim kaçış yolu yoktur.
 6. `pnpm test`, `pnpm run check`, `pnpm run build` ardından `pnpm run db:migrate && pnpm run deploy`. Ana dalın otomatik yayını varsa birleştirmeden önce yapılandırmayı tamamlayın.
 

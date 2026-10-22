@@ -4,7 +4,7 @@ declare namespace Cloudflare {
     TEST_ACCOUNTS_JSON?: string;
     SIGNING_KEYS_JSON?: string;
     ROLE_EMAILS_JSON?: string;
-    RESEND_API_KEY?: string;
+    BREVO_API_KEY?: string;
     MAIL_FROM?: string;
     APP_ORIGIN?: string;
     BUCKET?: R2Bucket;
