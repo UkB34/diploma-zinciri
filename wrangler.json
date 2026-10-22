@@ -13,5 +13,9 @@
       "database_id": "a423b5e5-6343-4b62-a8ba-21648a5ccd17",
       "migrations_dir": "drizzle"
     }
-  ]
+  ],
+  "vars": {
+    "APP_ORIGIN": "https://diploma-zinciri.bllufuk04.workers.dev",
+    "MAIL_FROM": "bllufuk04@gmail.com"
+  }
 }

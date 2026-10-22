@@ -1,36 +1,42 @@
-import { env } from 'cloudflare:workers';
 import {getAppUser} from '../../../lib/auth';
-import {readState,MEETING} from '../../../lib/shared-state';
-import {validOrigin} from '../../../lib/auth-crypto.mjs';
-import { initialState, roles, makeCase, changeCase, event, verifyChain, currentVersion } from '../../../lib/workflow.mjs';
-export const dynamic = 'force-dynamic';
-const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
-export async function GET(){
- const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);
- const s=await readState();return json({...s.data,role:user.role,username:user.username,revision:s.revision});
-}
+import {readState} from '../../../lib/shared-state';
+import {validOrigin,randomToken,hashToken} from '../../../lib/auth-crypto.mjs';
+import {makeCase,changeCase,event,verifyChain,currentVersion,canAct,assertReady,publicState} from '../../../lib/workflow.mjs';
+import {json,limitedBody,saveState,transcriptFields} from '../../../lib/server-utils';
+import {signatureConfig,sendInvitation} from '../../../lib/mail';
+import {keyId} from '../../../lib/signatures.mjs';
+export const dynamic='force-dynamic';
+export async function GET(){const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);const s=await readState();return json({...publicState(s.data),...user,revision:s.revision});}
 export async function POST(req:Request){
- const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);
- if(!validOrigin(req))return json({error:'İstek kaynağı doğrulanamadı.'},403);
- let body:any;try{const raw=await req.text();if(raw.length>18000)return json({error:'İstek çok büyük.'},413);body=JSON.parse(raw);}catch{return json({error:'Geçersiz istek.'},400);}
- const {data,revision}=await readState();if(body.revision!==revision)return json({error:'Dosya başka bir işlemle güncellendi. Yenileyip tekrar deneyin.'},409);
- let failure='';
+ const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);if(!validOrigin(req))return json({error:'İstek kaynağı doğrulanamadı.'},403);
+ let body:any;try{body=JSON.parse(new TextDecoder().decode(await limitedBody(req,18000)));}catch{return json({error:'Geçersiz veya büyük istek.'},400);}
+ const {data,revision}=await readState();if(body.revision!==revision)return json({error:'Dosya güncellendi. Yenileyip tekrar deneyin.'},409);
+ if(body.role!==undefined||body.action==='role')return json({error:'Hesap yetkisi değiştirilemez.'},403);
  try{
- if(body.action==='role'||body.role!==undefined)return json({error:'Hesap yetkisi değiştirilemez. Farklı hesap için çıkış yapın.'},403);
  if(body.action==='create'){
-  if(user.role!=='registrar')throw new Error('Dosyayı yalnızca öğrenci işleri oluşturabilir.');
-  const name=String(body.name||'').trim(),student=String(body.student||'').trim(),notes=String(body.note||'').trim();
-  if(name.length<3||name.length>90||!/^\d{4,15}$/.test(student)||notes.length<5||notes.length>3000)throw new Error('Ad, öğrenci numarası ve belge içeriğini kontrol edin.');
-  if(data.cases.some((c:any)=>currentVersion(c).content.student===student))throw new Error('Bu öğrenci numarasıyla zaten bir dosya var.');
-  if(data.cases.length>=100)throw new Error('Prototipte en fazla 100 dosya oluşturulabilir.');
-  data.cases.unshift(await makeCase(name,student,notes,user.role,user.username));
+ if(user.role!=='registrar')return json({error:'Dosyayı yalnızca öğrenci işleri oluşturabilir.'},403);
+ const name=String(body.name||'').trim(),student=String(body.student||'').trim(),notes=String(body.note||'').trim();
+ if(name.length<3||name.length>90||!/^\d{4,15}$/.test(student)||notes.length<5||notes.length>3000)throw Error('Öğrenci bilgilerini kontrol edin.');
+ if(data.cases.some((c:any)=>currentVersion(c).content.student===student))throw Error('Bu öğrenci numarası zaten kayıtlı.');if(data.cases.length>=100)throw Error('Prototipte en fazla 100 dosya oluşturulabilir.');
+ data.cases.unshift(await makeCase(name,student,notes,user.role,user.username,await transcriptFields(body,user)));
  }else{
-  const c=data.cases.find((x:any)=>x.id===body.id);if(!c)throw new Error('Dosya bulunamadı.');
-  if(body.action==='check')return json({valid:await verifyChain(c)});
-  try{await changeCase(c,user.role,body.action,{note:body.note},user.username);}catch(e){failure=e instanceof Error?e.message:'İşlem başarısız.';await event(c,user.role,'İşlem engellendi',c.status,c.status,failure,user.username);}
+ const c=data.cases.find((x:any)=>x.id===body.id);if(!c)return json({error:'Dosya bulunamadı.'},404);
+ if(body.action==='check')return json({valid:await verifyChain(c)});
+ if(body.action==='request-signature'){
+ if(!canAct(c,user.role,body.action))return json({error:'İmza sırası bu hesapta değil.'},403);assertReady(c);
+ const config=signatureConfig(user);const now=Date.now();if(c.pending&&now-c.pending.createdAt<60000)return json({error:'Tekrar göndermek için bir dakika bekleyin. E-postanızı kontrol edin.'},429);
+ const token=randomToken(),requestId=crypto.randomUUID(),v=currentVersion(c);
+ c.pending={requestId,tokenHash:await hashToken(token),username:user.username,role:user.role,version:v.number,hash:v.hash,stage:c.status,createdAt:now,expiresAt:now+1200000,keyId:await keyId(config.keys.publicKey)};
+ await event(c,user.role,'İmzalama daveti istendi',c.status,c.status,'Dosya henüz sonraki aşamaya geçmedi.',user.username);
+ if(!await saveState(data,revision))return json({error:'Eşzamanlı işlem. Yenileyip deneyin.'},409);
+ try{await sendInvitation(user,c.id,token,requestId);}catch(e){const fresh=await readState();const current=fresh.data.cases.find((x:any)=>x.id===c.id);if(current?.pending?.requestId===requestId){current.pending=null;await event(current,user.role,'E-posta gönderimi başarısız',current.status,current.status,'Yeni davet isteyebilirsiniz.',user.username);await saveState(fresh.data,fresh.revision);}return json({error:e instanceof Error?e.message:'E-posta gönderilemedi.'},502);}
+ return json({...publicState(data),...user,revision:revision+1,message:'İmzalama daveti hesabınıza tanımlı e-posta adresine gönderildi. Dosya imzanızı bekliyor.'});
  }
- const result=await env.DB!.prepare('UPDATE workspaces SET payload=?, revision=revision+1 WHERE owner=? AND revision=?').bind(JSON.stringify(data),MEETING,revision).run();
- if(result.meta.changes!==1)return json({error:'Eşzamanlı işlem algılandı. Sayfayı yenileyin.'},409);
- return json({...data,role:user.role,username:user.username,revision:revision+1,...(failure?{error:failure}:{})},failure?403:200);
+ if(!canAct(c,user.role,body.action))return json({error:'Bu işlem için yetkiniz yok.'},403);
+ const fields=body.action==='revise'?await transcriptFields(body,user,currentVersion(c).content.transcript):undefined;
+ await changeCase(c,user.role,body.action,{note:body.note,fields},user.username);
+ }
+ if(!await saveState(data,revision))return json({error:'Eşzamanlı işlem algılandı. Yenileyin.'},409);
+ return json({...publicState(data),...user,revision:revision+1});
  }catch(e){return json({error:e instanceof Error?e.message:'İşlem tamamlanamadı.'},400);}
 }

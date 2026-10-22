@@ -1,8 +1,9 @@
 import {env} from 'cloudflare:workers';
+import {roles} from './workflow.mjs';
 import {headers} from 'next/headers';
 import {hashToken,readSessionCookie} from './auth-crypto.mjs';
 export type Account={username:string;role:string;salt:string;hash:string};
-export function getAccounts():Account[]{try{return JSON.parse(env.TEST_ACCOUNTS_JSON||'[]');}catch{return [];}}
+export function getAccounts():Account[]{try{return JSON.parse(env.TEST_ACCOUNTS_JSON||'[]').filter((a:Account)=>roles.some(r=>r.id===a.role));}catch{return [];}}
 export async function getAppUser(){
  const h=await headers();const token=readSessionCookie(h.get('cookie'));if(!token)return null;
  const row=await env.DB!.prepare('SELECT username,expires_at FROM sessions WHERE token_hash=? AND expires_at>?').bind(await hashToken(token),Date.now()).first<{username:string,expires_at:number}>();

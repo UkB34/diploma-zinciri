@@ -1,3 +1,7 @@
+# V2 geliştirme dalı
+
+Dört aşamalı test dijital imza akışı ve PDF transkript yükleme için [V2 kurulum notlarına](V2-SETUP.md) bakın. Aşağıdaki önceki sürüm notları V1 bağlamını korur.
+
 # Diploma Zinciri
 
 Mezuniyet dosyalarının ayrı yetkili hesaplarıyla sırayla onaylandığı, ortak veritabanı kullanan toplantı prototipi.

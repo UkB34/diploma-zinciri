@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="tr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>Diploma Zinciri — Test anahtarları</title>
+<style>body{font:18px system-ui;max-width:760px;margin:60px auto;padding:24px;background:#f4f7fb;color:#16263b}button{padding:14px 20px;background:#1655b8;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer}button:disabled{opacity:.5}textarea{width:100%;box-sizing:border-box;margin:20px 0;font:14px monospace}p{line-height:1.6}code{background:#e3eaf3;padding:3px}#result{display:none}</style>
+<h1>Test imza anahtarlarını oluştur</h1>
+<p>Öğrenci işleri, fakülte, rektörlük ve merkez için dört ayrı test anahtarı üretir. Anahtarlar bu tarayıcıda oluşturulur; bu sayfa hiçbir sunucuya veri göndermez. Bunlar nitelikli elektronik imza sertifikası değildir.</p>
+<p>Cloudflare’da <code>SIGNING_KEYS_JSON</code> zaten varsa yeni anahtar üretmeyin. Mevcut anahtarları değiştirmek bekleyen davetleri geçersiz kılar.</p>
+<button id="generate">Dört test anahtarını oluştur</button><p id="status" role="status"></p>
+<section id="result"><p>Cloudflare → Runtime variables and secrets → Production → Add variable. Tür: <b>Secret</b>, ad: <code>SIGNING_KEYS_JSON</code>. Aşağıdaki değerin tamamını Value alanına yapıştırıp kaydedin.</p><textarea id="value" rows="9" readonly aria-label="Cloudflare Secret değeri"></textarea><button id="select">Değerin tamamını seç</button><p>Anahtar değerini sohbete veya GitHub’a göndermeyin. Cloudflare’a kaydettikten sonra bu sayfayı kapatabilirsiniz. Sayfa yenilenirse burada üretilen değer kaybolur.</p></section>
+<script>
+const button=document.getElementById('generate'), status=document.getElementById('status'), value=document.getElementById('value');
+async function generateKeys(){
+ const keys={};
+ for(const role of ['registrar','faculty','rector','central']){
+  const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+  const publicKey=await crypto.subtle.exportKey('jwk',pair.publicKey);
+  const canonical=JSON.stringify({crv:publicKey.crv,kty:publicKey.kty,x:publicKey.x,y:publicKey.y});
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonical));
+  keys[role]={privateKey:await crypto.subtle.exportKey('jwk',pair.privateKey),publicKey,keyId:Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')};
+ }
+ return keys;
+}
+button.onclick=async()=>{button.disabled=true;try{if(!crypto.subtle)throw Error('Dosyayı indirip Chrome veya Edge ile açın.');value.value=JSON.stringify(await generateKeys());document.getElementById('result').style.display='block';status.textContent='Dört test anahtarı hazır.';}catch(e){status.textContent=e.message;button.disabled=false;}};
+document.getElementById('select').onclick=()=>{value.focus();value.select();status.textContent='Tamamı seçildi. Ctrl+C ile kopyalayın.';};
+</script></html>
