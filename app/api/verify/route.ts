@@ -22,7 +22,7 @@ export async function GET(req:Request){
  }));
  const finalIssuer=origin+'/issuers/central';const central=keys.central;
  const finalJwt=c.credential?.vc;const finalKid=central?.publicKey?finalIssuer+'#'+await keyId(central.publicKey):'';
- const finalResult=central?.publicKey?await verifyVcJwt(finalJwt,central.publicKey,finalIssuer,finalKid):{verified:false};
+ const finalResult=central?.publicKey?await verifyVcJwt(finalJwt,central.publicKey,finalIssuer,finalKid):{verified:false,credential:undefined};
  const subject=finalResult.credential?.credentialSubject;
  const finalMatches=finalResult.verified&&subject?.caseId===c.id&&subject?.version===v.number&&subject?.documentHash===v.hash&&subject?.transcriptHash===v.content.transcript?.hash;
  const verified=c.status==='issued'&&approvalChecks.every(x=>x.verified)&&finalMatches;
