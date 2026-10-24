@@ -1,6 +1,6 @@
 # V2 geliştirme dalı
 
-Dört aşamalı test dijital imza akışı ve PDF transkript yükleme için [V2 kurulum notlarına](V2-SETUP.md) bakın. Aşağıdaki önceki sürüm notları V1 bağlamını korur.
+Dört aşamalı, W3C VC-JWT biçiminde test onay akışı ve PDF transkript yükleme için [V2 kurulum notlarına](V2-SETUP.md) bakın. Aşağıdaki önceki sürüm notları V1 bağlamını korur.
 
 # Diploma Zinciri
 
@@ -16,7 +16,7 @@ Mezuniyet dosyalarının ayrı yetkili hesaplarıyla sırayla onaylandığı, or
 - Yeni belge sürümünde onayların yeniden alınması.
 - İşlem geçmişinde öğrenci listesi; seçilen öğrencinin yalnızca kendi dosya geçmişi. Aynı adlar öğrenci/dosya numarasıyla ayrılır.
 - Ortak D1 veritabanı, eşzamanlı değişiklik kontrolü, oturum sonlandırma.
-- Test doğrulama kodu ve iptal. Gerçek NFT, blokzincir veya nitelikli e-imza bağlı değildir.
+- Test doğrulama kodu ve iptal. Test issuer anahtarları dışında gerçek üniversite güven kökü, NFT, blokzincir veya nitelikli e-imza bağlı değildir.
 - Yeni sitenin adresine göre oluşturulan Windows masaüstü kısayolu.
 
 ## Çalışma yapısı
