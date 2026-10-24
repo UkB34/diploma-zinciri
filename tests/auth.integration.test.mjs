@@ -5,7 +5,8 @@ import ts from 'typescript';
 import {readFileSync} from 'node:fs';
 import {resolve,dirname,extname} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {generateSigningKey,verifyApproval} from '../lib/signatures.mjs';
+import {generateSigningKey,keyId} from '../lib/signatures.mjs';
+import {verifyVcJwt} from '../lib/vc.mjs';
 import {passwordHash,readSessionCookie} from '../lib/auth-crypto.mjs';
 const sql=new DatabaseSync(':memory:');
 for(const name of ['0000_luxuriant_aaron_stack.sql','0001_cute_lilith.sql','0002_transcripts.sql'])sql.exec(readFileSync(new URL('../drizzle/'+name,import.meta.url),'utf8'));
@@ -29,7 +30,7 @@ const login=async username=>{const r=await auth.POST(request({username,password:
 const state=async cookie=>(await get(cookie)).json();
 const act=async(cookie,body)=>{const s=await state(cookie);return workflow.POST(request({...body,revision:s.revision},cookie));};
 const mailToken=()=>mail.at(-1).textContent.match(/token=([a-f0-9]{64})/)[1];
-test('PDF, dört hesap, e-posta daveti, tek kullanım ve imzasız geçiş engeli',async()=>{
+test('PDF, dört hesap, e-posta daveti, VC-JWT onayı, tek kullanım ve onaysız geçiş engeli',async()=>{
  assert.equal((await get('')).status,401);
  assert.equal((await auth.POST(request({username:'bolum',password:'test-only-password'}))).status,401);
  const registrar=await login('ogrenci_isleri'),faculty=await login('fakulte'),rector=await login('rektorluk'),central=await login('merkez');
@@ -50,7 +51,7 @@ test('PDF, dört hesap, e-posta daveti, tek kullanım ve imzasız geçiş engeli
  const token=mailToken();assert.equal((await signatures.POST(request({action:'inspect',token},cookie))).status,200);
  assert.equal((await signatures.POST(request({action:'sign',token,consent:true},cookie===faculty?registrar:faculty))).status,403);
  assert.equal((await signatures.POST(request({action:'sign',token,consent:false},cookie))).status,400);
- const signed=await signatures.POST(request({action:'sign',token,consent:true},cookie));assert.equal(signed.status,200);const result=await signed.json();assert.equal(await verifyApproval(result.proof,signingKeys[role].publicKey),true);assert.equal(result.status,next);
+ const signed=await signatures.POST(request({action:'sign',token,consent:true},cookie));assert.equal(signed.status,200);const result=await signed.json();assert.equal(result.proof.type,'W3C_VC_JWT_TEST');const issuer='https://test.example/issuers/'+role;const kid=issuer+'#'+await keyId(signingKeys[role].publicKey);assert.equal((await verifyVcJwt(result.proof.jwt,signingKeys[role].publicKey,issuer,kid)).verified,true);assert.equal(result.status,next);
  assert.equal((await signatures.POST(request({action:'sign',token,consent:true},cookie))).status,403);
  }
  assert.equal(mail.length,4);assert.equal((await act(central,{action:'issue',id})).status,200);
