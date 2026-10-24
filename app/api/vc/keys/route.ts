@@ -9,7 +9,7 @@ export async function GET(){
   const keys=JSON.parse(env.SIGNING_KEYS_JSON);
   const issuers=await Promise.all(roles.map(async role=>{
    const publicKey=keys[role.id]?.publicKey;if(!publicKey)throw Error();
-   const issuer=env.APP_ORIGIN!.replace(/\\/$/,'')+'/issuers/'+role.id;
+   const issuer=new URL(env.APP_ORIGIN!).origin+'/issuers/'+role.id;
    return {issuer,key:{kty:'EC',crv:'P-256',x:publicKey.x,y:publicKey.y,alg:'ES256',use:'sig',kid:issuer+'#'+await keyId(publicKey)}};
   }));
   return Response.json({type:'test-vc-issuer-keys',issuers},{headers});
