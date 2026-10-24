@@ -4,7 +4,7 @@ Akış: öğrenci işleri → fakülte → rektörlük → merkez. Her rolün d�
 
 ## Mevcut kullanıcıları koruma
 
-`TEST_ACCOUNTS_JSON` değişmez. Bölüm rolü artık giriş yapamaz. Mevcut devam eden V1 dosyaları ilk okumada, sürüm kontrolüyle V2 öğrenci işleri aşamasına taşınır. Eski olaylar ve onaylar değiştirilmez; imza olarak kabul edilmez. Öğrenci işleri PDF ve eğitim bilgilerini tamamlar, dört yeni VC onayı alınır. V1 tamamlanmış/iptal edilmiş/reddedilmiş dosyalar eski kayıt olarak korunur. Üretime geçişten önce D1 yedeği alın ve V2’yi ayrı test ortamında doğrulayın.
+`TEST_ACCOUNTS_JSON` değişmez. Bölüm rolü artık giriş yapamaz. Mevcut devam eden V1 ve V2 test dosyaları ilk okumada, sürüm kontrolüyle yeni VC protokolünün öğrenci işleri aşamasına taşınır. Önceki olay ve onaylar geçmiş kayıt olarak korunur, yeni VC onayı sayılmaz. Öğrenci işleri PDF ve eğitim bilgilerini tamamlar; dört rol için yeni VC onayları alınır. V1 tamamlanmış/iptal edilmiş/reddedilmiş dosyalar eski kayıt olarak korunur. Üretime geçişten önce D1 yedeği alın ve V2’yi ayrı test ortamında doğrulayın.
 
 ## Cloudflare kurulumu
 
@@ -23,13 +23,13 @@ Akış: öğrenci işleri → fakülte → rektörlük → merkez. Her rolün d�
 ## Test VC güven modeli
 
 - Her rolün özel anahtarı mevcut `SIGNING_KEYS_JSON` Cloudflare Secret içinde tutulur. Sunucu VC-JWT düzenler; her aşamada yalnızca ilgili role ait açık anahtarla doğrulanır. Bu, W3C biçiminde test VC prototipidir; nitelikli e-imza, TÜBİTAK entegrasyonu veya gerçek üniversite issuer kimlik bilgisi değildir.
-- Birim onay VC kapsamı: issuer, diploma dosyası, sürüm, belge hash’i, PDF hash’i, yetkili rolü, hesap ve onay isteği kimliği. JOSE ile ES256 (ECDSA P-256/SHA-256) kullanılır. Sunucu zamanı bağımsız zaman damgası değildir.
+- Birim onay VC kapsamı: issuer, diploma dosyası, sürüm, belge hash’i, PDF hash’i, yetkili rolü, hesap ve onay isteği kimliği. JOSE ile ES256 (ECDSA P-256/SHA-256) kullanılır. Sunucu zamanı bağımsız zaman damgası değildir. İptal kontrolü prototipin doğrulama API’sinde yapılır; herkese açık, bağımsız bir VC status listesi yoktur.
 - Davetler 20 dakika geçerli, tek kullanımlı ve hesaba/role/sürüme/aşamaya bağlıdır. Ham davet tokenı veritabanında saklanmaz; hash’i saklanır. Token URL fragment’ında gönderilir, sayfa açılınca adres çubuğundan kaldırılır. Davet sayfasına dış analiz scriptleri eklemeyin.
-- E-posta bağlantısı otomatik imzalamaz. Oturum ve açık onay gerekir. POST isteklerinde origin kontrolü vardır. Oturumlar HttpOnly/Secure/SameSite=Lax cookie kullanır.
+- E-posta bağlantısı kendi başına VC oluşturmaz. Oturum ve açık onay gerekir. POST isteklerinde origin kontrolü vardır. Oturumlar HttpOnly/Secure/SameSite=Lax cookie kullanır.
 - VC doğrulaması ve durum değişikliği aynı revision karşılaştırmalı veritabanı güncellemesinde kaydedilir; eşzamanlı isteklerden yalnızca biri kabul edilir.
 - Yeni sürüm bekleyen daveti iptal eder, eski imza/VC kayıtlarını geçmişte tutar ve öğrenci işlerinden yeniden başlar.
 - PDF indirmede SHA-256 ayrıca karşılaştırılabilir. Sadece hash, belgenin üniversiteden geldiğini veya içindeki bilgilerin doğru olduğunu kanıtlamaz.
-- Dışa aktarılan JSON için `node scripts/verify-signatures.mjs DOSYA.json` kullanılabilir. Bu kontrol paketteki test açık anahtarlarıyla tutarlılık sınar; bağımsız kimlik güvencesi sağlamaz.
+- Önceki V2 imza dışa aktarımları için `node scripts/verify-signatures.mjs DOSYA.json` kullanılabilir. Bu kontrol yalnızca eski test imzalarının tutarlılığını sınar; yeni VC-JWT’ler uygulamanın VC doğrulama uç noktası ve yayımlanan test açık anahtarlarıyla kontrol edilir.
 - API anahtarları, özel imza anahtarları, gerçek transkriptler ve hesap parolaları GitHub’a eklenmez.
 
 ## VC-JWT doğrulaması ve kalan canlı doğrulama
