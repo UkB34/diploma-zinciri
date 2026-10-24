@@ -5,6 +5,7 @@ import {makeCase,changeCase,event,verifyChain,currentVersion,canAct,assertReady,
 import {json,limitedBody,saveState,transcriptFields} from '../../../lib/server-utils';
 import {signatureConfig,sendInvitation} from '../../../lib/mail';
 import {keyId} from '../../../lib/signatures.mjs';
+import {createVcJwt,approvalCredential,diplomaCredential} from '../../../lib/vc.mjs';
 export const dynamic='force-dynamic';
 export async function GET(){const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);const s=await readState();return json({...publicState(s.data),...user,revision:s.revision});}
 export async function POST(req:Request){
@@ -23,18 +24,24 @@ export async function POST(req:Request){
  const c=data.cases.find((x:any)=>x.id===body.id);if(!c)return json({error:'Dosya bulunamadı.'},404);
  if(body.action==='check')return json({valid:await verifyChain(c)});
  if(body.action==='request-signature'){
- if(!canAct(c,user.role,body.action))return json({error:'İmza sırası bu hesapta değil.'},403);assertReady(c);
+ if(!canAct(c,user.role,body.action))return json({error:'VC onay sırası bu hesapta değil.'},403);assertReady(c);
  const config=signatureConfig(user);const now=Date.now();if(c.pending&&now-c.pending.createdAt<60000)return json({error:'Tekrar göndermek için bir dakika bekleyin. E-postanızı kontrol edin.'},429);
  const token=randomToken(),requestId=crypto.randomUUID(),v=currentVersion(c);
- c.pending={requestId,tokenHash:await hashToken(token),username:user.username,role:user.role,version:v.number,hash:v.hash,stage:c.status,createdAt:now,expiresAt:now+1200000,keyId:await keyId(config.keys.publicKey)};
- await event(c,user.role,'İmzalama daveti istendi',c.status,c.status,'Dosya henüz sonraki aşamaya geçmedi.',user.username);
+ c.pending={requestId,tokenHash:await hashToken(token),username:user.username,role:user.role,version:v.number,hash:v.hash,stage:c.status,createdAt:now,expiresAt:now+1200000,keyId:await keyId(config.keys.publicKey),issuer:config.origin+'/issuers/'+user.role};
+ await event(c,user.role,'Test VC onay daveti istendi',c.status,c.status,'Dosya henüz sonraki aşamaya geçmedi.',user.username);
  if(!await saveState(data,revision))return json({error:'Eşzamanlı işlem. Yenileyip deneyin.'},409);
  try{await sendInvitation(user,c.id,token,requestId);}catch(e){const fresh=await readState();const current=fresh.data.cases.find((x:any)=>x.id===c.id);if(current?.pending?.requestId===requestId){current.pending=null;await event(current,user.role,'E-posta gönderimi başarısız',current.status,current.status,'Yeni davet isteyebilirsiniz.',user.username);await saveState(fresh.data,fresh.revision);}return json({error:e instanceof Error?e.message:'E-posta gönderilemedi.'},502);}
- return json({...publicState(data),...user,revision:revision+1,message:'İmzalama daveti hesabınıza tanımlı e-posta adresine gönderildi. Dosya imzanızı bekliyor.'});
+ return json({...publicState(data),...user,revision:revision+1,message:'VC onay daveti hesabınıza tanımlı e-posta adresine gönderildi. Dosya doğrulanmış onay VC’sini bekliyor.'});
  }
  if(!canAct(c,user.role,body.action))return json({error:'Bu işlem için yetkiniz yok.'},403);
  const fields=body.action==='revise'?await transcriptFields(body,user,currentVersion(c).content.transcript):undefined;
- await changeCase(c,user.role,body.action,{note:body.note,fields},user.username);
+ let vc:any;
+  if(body.action==='issue'){
+   const config=signatureConfig(user);const approvedAt=new Date().toISOString();
+   const {credential,issuer}=diplomaCredential({origin:config.origin,caseRecord:c,version:currentVersion(c),approvedAt});
+   const id=issuer+'#'+await keyId(config.keys.publicKey);vc={jwt:await createVcJwt(credential,config.keys,id),issuer};
+  }
+  await changeCase(c,user.role,body.action,{note:body.note,fields,vc},user.username);
  }
  if(!await saveState(data,revision))return json({error:'Eşzamanlı işlem algılandı. Yenileyin.'},409);
  return json({...publicState(data),...user,revision:revision+1});
