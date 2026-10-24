@@ -1,11 +1,12 @@
+import {env} from 'cloudflare:workers';
 import {getAppUser} from '../../../lib/auth';
 import {readState} from '../../../lib/shared-state';
 import {validOrigin,randomToken,hashToken} from '../../../lib/auth-crypto.mjs';
-import {makeCase,changeCase,event,verifyChain,currentVersion,canAct,assertReady,publicState} from '../../../lib/workflow.mjs';
+import {makeCase,changeCase,event,verifyChain,currentVersion,canAct,assertReady,publicState,stages} from '../../../lib/workflow.mjs';
 import {json,limitedBody,saveState,transcriptFields} from '../../../lib/server-utils';
 import {signatureConfig,sendInvitation} from '../../../lib/mail';
 import {keyId} from '../../../lib/signatures.mjs';
-import {createVcJwt,approvalCredential,diplomaCredential} from '../../../lib/vc.mjs';
+import {createVcJwt,approvalCredential,diplomaCredential,verifyVcJwt} from '../../../lib/vc.mjs';
 export const dynamic='force-dynamic';
 export async function GET(){const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);const s=await readState();return json({...publicState(s.data),...user,revision:s.revision});}
 export async function POST(req:Request){
@@ -37,8 +38,16 @@ export async function POST(req:Request){
  const fields=body.action==='revise'?await transcriptFields(body,user,currentVersion(c).content.transcript):undefined;
  let vc:any;
   if(body.action==='issue'){
-   const config=signatureConfig(user);const approvedAt=new Date().toISOString();
-   const {credential,issuer}=diplomaCredential({origin:config.origin,caseRecord:c,version:currentVersion(c),approvedAt});
+   if(!env.SIGNING_KEYS_JSON)throw Error('VC issuer anahtarları yapılandırılmamış.');
+   const keySet=JSON.parse(env.SIGNING_KEYS_JSON);const config=signatureConfig(user);const v=currentVersion(c);
+   for(const stage of stages){
+    const approval=c.approvals.find((a:any)=>a.role===stage&&a.version===v.number&&a.hash===v.hash);
+    const material=keySet[stage];if(!approval||approval.proof?.type!=='W3C_VC_JWT_TEST'||!material?.publicKey)throw Error('Dört birim onay VC’sinin tamamı doğrulanmadan diploma VC’si oluşturulamaz.');
+    const issuer=config.origin+'/issuers/'+stage;const id=issuer+'#'+await keyId(material.publicKey);
+    const result=await verifyVcJwt(approval.proof.jwt,material.publicKey,issuer,id);const subject=result.credential?.credentialSubject;
+    if(!result.verified||subject?.caseId!==c.id||subject?.version!==v.number||subject?.documentHash!==v.hash||subject?.transcriptHash!==v.content.transcript?.hash)throw Error('Bir birimin VC’si geçersiz veya belge sürümüyle eşleşmiyor.');
+   }
+   const approvedAt=new Date().toISOString();const {credential,issuer}=diplomaCredential({origin:config.origin,caseRecord:c,version:v,approvedAt});
    const id=issuer+'#'+await keyId(config.keys.publicKey);vc={jwt:await createVcJwt(credential,config.keys,id),issuer};
   }
   await changeCase(c,user.role,body.action,{note:body.note,fields,vc},user.username);
