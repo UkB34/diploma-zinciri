@@ -11,7 +11,7 @@ export async function GET(req:Request){
  const c=row?JSON.parse(row.payload).cases.find((c:any)=>c.credential?.code===code):null;
  if(!c)return Response.json({error:'Kayıt bulunamadı.'},{status:404,headers});
  if(!env.APP_ORIGIN||!env.SIGNING_KEYS_JSON)return Response.json({error:'VC doğrulama anahtarları yapılandırılmamış.'},{status:503,headers});
- const keys=JSON.parse(env.SIGNING_KEYS_JSON);const origin=env.APP_ORIGIN.replace(/\\/$/,'');const v=currentVersion(c);
+ const keys=JSON.parse(env.SIGNING_KEYS_JSON);const origin=new URL(env.APP_ORIGIN).origin;const v=currentVersion(c);
  const approvalChecks=await Promise.all(roles.map(async role=>{
   const approval=c.approvals.find((a:any)=>a.role===role.id&&a.version===v.number&&a.hash===v.hash);
   const material=keys[role.id];if(!approval||!material?.publicKey)return {role:role.id,verified:false};
