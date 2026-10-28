@@ -23,12 +23,12 @@ const signatures=await import(moduleUrl('app/api/signatures/route.ts'));
 const transcripts=await import(moduleUrl('app/api/transcripts/route.ts'));
 const signingKeys=Object.fromEntries(await Promise.all(['registrar','faculty','rector','central'].map(async r=>[r,await generateSigningKey()])));
 Object.assign(globalThis.__env,{SIGNING_KEYS_JSON:JSON.stringify(signingKeys),ROLE_EMAILS_JSON:JSON.stringify({ogrenci_isleri:'registrar@example.com',fakulte:'faculty@example.com',rektorluk:'rector@example.com',merkez:'central@example.com'}),BREVO_API_KEY:'test-only',MAIL_FROM:'test@example.com',APP_ORIGIN:'https://test.example'});
-let mail=[],mailFails=false;
-globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.brevo.com/v3/smtp/email');if(mailFails)return Response.json({error:'test'},{status:403});assert.equal(options.headers['api-key'],'test-only');const body=JSON.parse(options.body);assert.deepEqual(body.sender,{name:'Diploma Zinciri',email:'test@example.com'});assert.equal(typeof body.to[0].email,'string');assert.ok(body.textContent.includes('/imzala#token='));mail.push(body);return Response.json({id:'mail-test'});};
+let mail=[],mailFails=false,notificationFails=false;
+globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.brevo.com/v3/smtp/email');if(mailFails||(notificationFails&&JSON.parse(options.body).subject.includes('incelemenizi')))return Response.json({error:'test'},{status:403});assert.equal(options.headers['api-key'],'test-only');const body=JSON.parse(options.body);assert.deepEqual(body.sender,{name:'Diploma Zinciri',email:'test@example.com'});assert.equal(typeof body.to[0].email,'string');assert.ok(body.textContent.includes('/imzala#token=')||body.textContent.includes('/?case='));mail.push(body);return Response.json({id:'mail-test'});};
 const login=async username=>{const r=await auth.POST(request({username,password:'test-only-password'}));assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0];};
 const state=async cookie=>(await get(cookie)).json();
 const act=async(cookie,body)=>{const s=await state(cookie);return workflow.POST(request({...body,revision:s.revision},cookie));};
-const mailToken=()=>mail.at(-1).textContent.match(/token=([a-f0-9]{64})/)[1];
+const mailToken=()=>mail.filter(m=>m.textContent.includes('/imzala#token=')).at(-1).textContent.match(/token=([a-f0-9]{64})/)[1];
 test('PDF, dört hesap, e-posta daveti, tek kullanım ve imzasız geçiş engeli',async()=>{
  assert.equal((await get('')).status,401);
  assert.equal((await auth.POST(request({username:'bolum',password:'test-only-password'}))).status,401);
@@ -44,17 +44,38 @@ test('PDF, dört hesap, e-posta daveti, tek kullanım ve imzasız geçiş engeli
  assert.equal((await act(faculty,{action:'request-signature',id})).status,403);
  assert.equal((await act(registrar,{action:'role',role:'rector'})).status,403);
  assert.equal((await workflow.POST(request({action:'request-signature',id,revision:s.revision},registrar,'https://evil.example'))).status,403);
- for(const [cookie,role,next] of [[registrar,'registrar','faculty'],[faculty,'faculty','rector'],[rector,'rector','central'],[central,'central','ready']]){
+ for(const [cookie,role,next] of [[registrar,'registrar','faculty'],[faculty,'faculty','rector'],[rector,'rector','central'],[central,'central','issued']]){
  const before=await state(cookie);assert.equal((await act(cookie,{action:'request-signature',id})).status,200);
  s=await state(cookie);assert.equal(s.cases[0].status,before.cases[0].status);assert.ok(s.cases[0].pending);assert.equal('tokenHash' in s.cases[0].pending,false);
  const token=mailToken();assert.equal((await signatures.POST(request({action:'inspect',token},cookie))).status,200);
  assert.equal((await signatures.POST(request({action:'sign',token,consent:true},cookie===faculty?registrar:faculty))).status,403);
  assert.equal((await signatures.POST(request({action:'sign',token,consent:false},cookie))).status,400);
+ if(role==='faculty')notificationFails=true;
  const signed=await signatures.POST(request({action:'sign',token,consent:true},cookie));assert.equal(signed.status,200);const result=await signed.json();assert.equal(await verifyApproval(result.proof,signingKeys[role].publicKey),true);assert.equal(result.status,next);
+ if(role==='faculty'){
+ assert.equal(result.notification.status,'failed');notificationFails=false;
+ const row=sql.prepare('SELECT owner,payload FROM workspaces').get();const payload=JSON.parse(row.payload);payload.cases.find(c=>c.id===id).notification.attemptAt=0;sql.prepare('UPDATE workspaces SET payload=? WHERE owner=?').run(JSON.stringify(payload),row.owner);
+ assert.equal((await act(registrar,{action:'retry-notification',id})).status,403);
+ assert.equal((await act(cookie,{action:'retry-notification',id})).status,200);
+ assert.equal((await state(cookie)).cases[0].notification.status,'sent');
+ }
+ if(role!=='central'){
+ const notification=mail.at(-1);assert.equal(notification.to[0].email,({faculty:'faculty@example.com',rector:'rector@example.com',central:'central@example.com'})[next]);assert.equal(notification.textContent.includes('token='),false);
+ }else assert.match(result.credentialCode,/^TEST-[A-F0-9]{20}$/);
+ const count=mail.length;
+ assert.equal((await act(cookie,{action:'retry-notification',id})).status,role==='central'?403:200);
+ assert.equal(mail.length,count);
+
  assert.equal((await signatures.POST(request({action:'sign',token,consent:true},cookie))).status,403);
  }
- assert.equal(mail.length,4);assert.equal((await act(central,{action:'issue',id})).status,200);
- s=await state(central);assert.equal(s.cases[0].approvals.length,4);assert.equal(s.cases[0].status,'issued');
+ assert.equal(mail.length,7);assert.equal((await act(central,{action:'issue',id})).status,403);
+ const verify=await import(moduleUrl('app/api/verify/route.ts'));
+ const issued=(await state(central)).cases[0];globalThis.__headers=new Headers();
+ let publicResponse=await verify.GET(new Request('https://test.example/api/verify?code='+issued.credential.code));assert.equal(publicResponse.status,200);const diploma=await publicResponse.json();assert.equal(diploma.diplomaAvailable,true);assert.equal('transcript' in diploma,false);assert.equal('student' in diploma,false);
+ assert.equal((await act(central,{action:'revoke',id,note:'Test iptal gerekçesi'})).status,200);
+ publicResponse=await verify.GET(new Request('https://test.example/api/verify?code='+issued.credential.code));assert.equal((await publicResponse.json()).status,'revoked');
+
+ s=await state(central);assert.equal(s.cases[0].approvals.length,4);assert.equal(s.cases[0].status,'revoked');
  // New case: provider failure must not advance or leave a usable pending challenge.
  assert.equal((await act(registrar,{action:'create',name:'İkinci Öğrenci',student:'20220002',note:'Temsili transkript',...fields})).status,200);
  id=(await state(registrar)).cases[0].id;mailFails=true;assert.equal((await act(registrar,{action:'request-signature',id})).status,502);mailFails=false;s=await state(registrar);assert.equal(s.cases[0].status,'draft');assert.equal(s.cases[0].pending,null);

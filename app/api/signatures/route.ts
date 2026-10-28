@@ -5,6 +5,7 @@ import {json,limitedBody,saveState} from '../../../lib/server-utils';
 import {signatureConfig} from '../../../lib/mail';
 import {challengeMatches,signApproval,verifyApproval,keyId} from '../../../lib/signatures.mjs';
 import {currentVersion,completeSignature} from '../../../lib/workflow.mjs';
+import {deliverNotification} from '../../../lib/notifications';
 export const dynamic='force-dynamic';
 export async function POST(req:Request){
  const user=await getAppUser();if(!user)return json({error:'Davetin gönderildiği hesapla giriş yapın.'},401);if(!validOrigin(req))return json({error:'İstek kaynağı doğrulanamadı.'},403);
@@ -20,6 +21,7 @@ export async function POST(req:Request){
  if(!await verifyApproval(proof,config.keys.publicKey))throw Error('İmza doğrulanamadı.');
  await completeSignature(c,user,proof);
  if(!await saveState(data,revision))return json({error:'Dosya güncellendi. Sayfayı yenileyip tekrar deneyin.'},409);
- return json({ok:true,status:c.status,proof});
+ let notification={status:'not-needed'};try{notification=await deliverNotification(c.id);}catch{notification={status:'failed'};}
+ return json({ok:true,status:c.status,proof,notification,credentialCode:c.credential?.code||null});
  }catch(e){return json({error:e instanceof Error?e.message:'İmza tamamlanamadı.'},400);}
 }

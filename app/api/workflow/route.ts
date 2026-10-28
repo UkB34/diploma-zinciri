@@ -5,6 +5,7 @@ import {makeCase,changeCase,event,verifyChain,currentVersion,canAct,assertReady,
 import {json,limitedBody,saveState,transcriptFields} from '../../../lib/server-utils';
 import {signatureConfig,sendInvitation} from '../../../lib/mail';
 import {keyId} from '../../../lib/signatures.mjs';
+import {deliverNotification} from '../../../lib/notifications';
 export const dynamic='force-dynamic';
 export async function GET(){const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);const s=await readState();return json({...publicState(s.data),...user,revision:s.revision});}
 export async function POST(req:Request){
@@ -21,6 +22,11 @@ export async function POST(req:Request){
  data.cases.unshift(await makeCase(name,student,notes,user.role,user.username,await transcriptFields(body,user)));
  }else{
  const c=data.cases.find((x:any)=>x.id===body.id);if(!c)return json({error:'Dosya bulunamadı.'},404);
+ if(body.action==='retry-notification'){
+ if(!c.notification||![c.notification.role,c.notification.fromRole].includes(user.role))return json({error:'Bu bildirim için yetkiniz yok.'},403);
+ const delivery=await deliverNotification(c.id);const fresh=await readState();
+ return json({...publicState(fresh.data),...user,revision:fresh.revision,message:delivery.status==='sent'?'Bildirim e-posta servisine iletildi.':'Bildirim henüz gönderilemedi. Bir dakika sonra tekrar deneyebilirsiniz.'});
+ }
  if(body.action==='check')return json({valid:await verifyChain(c)});
  if(body.action==='request-signature'){
  if(!canAct(c,user.role,body.action))return json({error:'İmza sırası bu hesapta değil.'},403);assertReady(c);
