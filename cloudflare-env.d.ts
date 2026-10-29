@@ -2,7 +2,7 @@ declare namespace Cloudflare {
   interface Env {
     DB?: D1Database;
     TEST_ACCOUNTS_JSON?: string;
-    SIGNING_KEYS_JSON?: string;
+    UNIVERSITY_KEY_JSON?: string;
     ROLE_EMAILS_JSON?: string;
     BREVO_API_KEY?: string;
     MAIL_FROM?: string;
