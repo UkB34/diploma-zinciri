@@ -1,4 +1,6 @@
-# V2: sıralı test dijital imzaları
+# V2: sıralı test dijital imzaları (eski)
+
+> V3 ile bu yöntemin yerini VC onayı aldı; bkz. [V3-SETUP.md](V3-SETUP.md). Bu belge V2 kayıtlarının bağlamı için korunur.
 
 Akış: öğrenci işleri → fakülte → rektörlük → merkez. Her rolün düğmesi yalnızca e-posta daveti oluşturur. Dosya ancak aynı hesap daveti açıp belgeyi inceleyerek imzalamayı onayladıktan ve imza doğrulandıktan sonra ilerler. Reddet ve bölüm onayı kaldırıldı; düzeltme ve sonradan belge iptali ayrı işlemler olarak korunur.
 

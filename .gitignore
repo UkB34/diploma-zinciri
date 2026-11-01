@@ -6,6 +6,8 @@ dist/
 *.tsbuildinfo
 accounts.local.json
 signing-secrets.local.json
+university-secrets.local.json
+*.local.json
 
 .next/
 node_modules

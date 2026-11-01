@@ -1,6 +1,6 @@
-# V2 geliştirme dalı
+# V3: Doğrulanabilir Dijital Kimlik (VC)
 
-Dört aşamalı test dijital imza akışı ve PDF transkript yükleme için [V2 kurulum notlarına](V2-SETUP.md) bakın. Aşağıdaki önceki sürüm notları V1 bağlamını korur.
+Birim onayları artık yetkilinin tarayıcısındaki dijital kimlik ve üniversitenin verdiği Yetkili Onaycı VC'si ile veriliyor; dört onaydan sonra öğrenciye W3C diploma VC'si düzenleniyor. Kurulum ve güven modeli için [V3 kurulum notlarına](V3-SETUP.md) bakın. V2 notları ([V2-SETUP.md](V2-SETUP.md)) eski kayıtlar için korunur.
 
 # Diploma Zinciri
 
@@ -16,7 +16,7 @@ Mezuniyet dosyalarının ayrı yetkili hesaplarıyla sırayla onaylandığı, or
 - Yeni belge sürümünde onayların yeniden alınması.
 - İşlem geçmişinde öğrenci listesi; seçilen öğrencinin yalnızca kendi dosya geçmişi. Aynı adlar öğrenci/dosya numarasıyla ayrılır.
 - Ortak D1 veritabanı, eşzamanlı değişiklik kontrolü, oturum sonlandırma.
-- Test doğrulama kodu ve iptal. Gerçek NFT, blokzincir veya nitelikli e-imza bağlı değildir.
+- Tarayıcı cüzdanı (did:jwk) ve Yetkili Onaycı VC'si ile birim onayı; üniversite DID'i (did:web) ile imzalı diploma VC'si; imzalı iptal listesi. Gerçek NFT, blokzincir veya nitelikli e-imza bağlı değildir.
 - Yeni sitenin adresine göre oluşturulan Windows masaüstü kısayolu.
 
 ## Çalışma yapısı
@@ -94,6 +94,8 @@ Aktarım sırasında 8 iş akışı/oturum testi, TypeScript kontrolü ve üreti
 
 - `app/`: giriş, doğrulama ve yönetim ekranları; sunucu API'leri.
 - `lib/workflow.mjs`: sıralı onay ve olay zinciri.
+- `lib/vc.mjs`: VC/VP üretme ve doğrulama, DID'ler, iptal listesi (tarayıcı ve sunucu ortak).
+- `lib/wallet-client.ts`: tarayıcı cüzdanı; `lib/credentials.ts`, `lib/diploma.ts`: VC düzenleme ve doğrulama.
 - `lib/auth*`: oturum ve parola kontrolleri.
 - `drizzle/*.sql`: veritabanı tabloları.
 - `tests/`: akış ve oturum testleri.
