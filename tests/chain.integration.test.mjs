@@ -73,6 +73,7 @@ test('iki yöntem: kayıt, makbuz kontrolü, doğrulama, iptal ve yetkisiz cüzd
  assert.equal((await runAndConfirm(central,prep)).status,'confirmed');
  assert.equal((await post(central,{action:'prepare',method:'nft',size:1,source:'bench'})).status,400); // nothing left
  globalThis.__headers=new Headers({cookie:central});info=await (await api.GET()).json();
+ assert.equal(info.records.length,160);assert.ok(info.records.every(r=>r.nft&&r.kind==='bench'));assert.equal(info.records.filter(r=>r.anchor).length,50);
  const nftRun=info.runs.find(r=>r.method==='nft'),anchorRun=info.runs.find(r=>r.method==='anchor');
  assert.equal(nftRun.txCount,2);assert.equal(nftRun.size,160);assert.equal(nftRun.status,'confirmed');assert.equal(nftRun.gasUsed,String(60000*160+60000));
  assert.equal(anchorRun.txCount,1);assert.equal(anchorRun.gasUsed,'90000');assert.ok(anchorRun.seconds!=null);

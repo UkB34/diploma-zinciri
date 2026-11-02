@@ -1,11 +1,11 @@
 import {getAppUser} from '../../../lib/auth';
 import {validOrigin} from '../../../lib/auth-crypto.mjs';
 import {json,limitedBody} from '../../../lib/server-utils';
-import {chainConfig,createBenchDiplomas,prepareRun,prepareRevoke,submitBatch,cancelBatch,confirmBatch,unauthorizedTest,report,benchCount,availableCounts} from '../../../lib/chain-server';
+import {chainConfig,createBenchDiplomas,prepareRun,prepareRevoke,submitBatch,cancelBatch,confirmBatch,unauthorizedTest,report,benchCount,availableCounts,recentRecords} from '../../../lib/chain-server';
 export const dynamic='force-dynamic';
 export async function GET(){
  const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);
- try{return json({config:chainConfig(),canAct:user.role==='central',benchCount:await benchCount(),available:await availableCounts(),runs:await report()});}
+ try{return json({config:chainConfig(),canAct:user.role==='central',benchCount:await benchCount(),available:await availableCounts(),runs:await report(),records:await recentRecords()});}
  catch(e){return json({error:e instanceof Error?e.message:'Blokzincir bilgisi alınamadı.'},503);}
 }
 export async function POST(req:Request){
