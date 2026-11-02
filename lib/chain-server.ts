@@ -165,3 +165,10 @@ export async function nftMetadata(tokenId:string){
   external_url:appOrigin()+(cred?.kind==='diploma'?'/diploma/'+code:'/dogrula'),
   attributes:[{trait_type:'Diploma kodu',value:code},{trait_type:'VC SHA-256',value:rec.vc_hash},{trait_type:'Düzenleyen (DID)',value:issuer},{trait_type:'Durum',value:rec.revoked_batch?'İptal edildi':'Geçerli'},{trait_type:'Tür',value:cred?.kind==='bench'?'Ölçüm testi':'Diploma'}]};
 }
+// Diplomas on chain (latest first), one row per code with the status of each method.
+export async function recentRecords(limit=300){
+ const rows=(await env.DB!.prepare("SELECT r.code,r.method,r.revoked_batch,b.tx_hash,b.block_time,c.kind FROM chain_records r JOIN chain_batches b ON b.id=r.batch_id LEFT JOIN credentials c ON c.subject=r.code ORDER BY b.block_time DESC LIMIT ?").bind(limit*2).all<any>()).results||[];
+ const by=new Map<string,any>();
+ for(const r of rows){const x=by.get(r.code)||{code:r.code,kind:r.kind==='diploma'?'diploma':'bench',latest:r.block_time||0};x[r.method]={txHash:r.tx_hash,revoked:!!r.revoked_batch,at:r.block_time};x.latest=Math.max(x.latest,r.block_time||0);by.set(r.code,x);}
+ return [...by.values()].sort((a,b)=>b.latest-a.latest).slice(0,limit);
+}

@@ -1,8 +1,9 @@
 'use client';
-import {useEffect,useMemo,useState} from 'react';
+import {Fragment,useEffect,useMemo,useState} from 'react';
 import {ArrowLeft,Boxes,Network,ShieldCheck,AlertCircle,RefreshCw,Download,Wallet,CheckCircle2} from 'lucide-react';
 import {connectWallet,sendTransaction,methodLabel,shortHash} from '../../lib/chain-client';
-import {txUrl,addressUrl,feeEth} from '../../lib/chain.mjs';
+import {txUrl,addressUrl,feeEth,tokenUrl,tokenIdFromCode} from '../../lib/chain.mjs';
+import ChainStatus from '../chain-status';
 const SIZES=[1,10,50,200];
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 const fmt=(n:number|bigint,d=0)=>Number(n).toLocaleString('tr-TR',{maximumFractionDigits:d});
@@ -12,7 +13,7 @@ export default function ChainLab(){
  const [data,setData]=useState<any>(null),[error,setError]=useState(''),[busy,setBusy]=useState(''),[log,setLog]=useState<string[]>([]),[account,setAccount]=useState('');
  const [method,setMethod]=useState<'nft'|'anchor'>('anchor'),[size,setSize]=useState(1),[source,setSource]=useState<'bench'|'issued'>('bench'),[genCount,setGenCount]=useState(10);
  const [revokeCode,setRevokeCode]=useState(''),[revokeMethod,setRevokeMethod]=useState<'nft'|'anchor'>('anchor'),[authResult,setAuthResult]=useState<any>({});
- const [gwei,setGwei]=useState(''),[ethTry,setEthTry]=useState('');
+ const [gwei,setGwei]=useState(''),[ethTry,setEthTry]=useState(''),[open,setOpen]=useState(''),[filter,setFilter]=useState('');
  const note=(m:string)=>setLog((l:string[])=>[new Date().toLocaleTimeString('tr-TR')+' · '+m,...l].slice(0,40));
  async function load(){try{const r=await fetch('/api/chain',{cache:'no-store'});const d:any=await r.json();if(r.status===401){location.href='/login?next=/blokzincir';return;}if(!r.ok)throw Error(d.error);setData(d);}catch(e:any){setError(e.message);}}
  useEffect(()=>{load();},[]);
@@ -75,7 +76,7 @@ export default function ChainLab(){
    {pending.length>0&&<button className="button secondary" style={{marginLeft:8}} disabled={!!busy} onClick={()=>guard('pending',async()=>{for(const t of pending)await confirm(t.id);})}>Bekleyenleri güncelle ({pending.length})</button>}
   </section>}
   {can&&<div className="verify-layout" style={{marginTop:24}}>
-   <section className="panel panel-body"><h2>T4 · Zincirde iptal</h2><p className="help">Kayıtlı bir diplomayı seçilen yöntemle zincirde iptal eder. Doğrulama sayfaları iptali gösterir.</p>
+   <section className="panel panel-body" id="t4"><h2>T4 · Zincirde iptal</h2><p className="help">Kayıtlı bir diplomayı seçilen yöntemle zincirde iptal eder. Doğrulama sayfaları iptali gösterir.</p>
     <label>Diploma kodu<input value={revokeCode} onChange={e=>setRevokeCode(e.target.value.trim().toUpperCase())} placeholder="TEST-…"/></label>
     <label>Yöntem<select value={revokeMethod} onChange={e=>setRevokeMethod(e.target.value as any)}><option value="anchor">Merkle</option><option value="nft">NFT</option></select></label>
     <button className="button danger" disabled={!!busy||!/^TEST-[A-F0-9]{20}$/.test(revokeCode)} onClick={()=>guard('revoke',async()=>{const prep=await post({action:'revoke',method:revokeMethod,code:revokeCode});await execute(prep,'İptal '+revokeCode);})}>Zincirde iptal et</button></section>
@@ -92,6 +93,17 @@ export default function ChainLab(){
     {runs.map((r:any)=>{const est=mainnet(r.gasUsed);return <tr key={r.runId}><td className="muted">{date(r.createdAt)}</td><td>{r.method==='nft'?'NFT':'Merkle'}</td><td>{r.action==='register'?'Kayıt':'İptal'}</td><td>{r.size}</td><td>{r.transactions.map((t:any)=>t.tx_hash?<div key={t.id}><a href={txUrl(t.tx_hash)} target="_blank" rel="noopener noreferrer">{shortHash(t.tx_hash)}</a></div>:<div key={t.id} className="muted">—</div>)}</td><td>{fmt(BigInt(r.gasUsed))}</td><td>{fmt(BigInt(r.gasPerDiploma))}</td><td>{feeEth(BigInt(r.feeWei),BigInt(1)).toLocaleString('tr-TR',{maximumFractionDigits:6})}</td><td>{est?`${est.eth.toLocaleString('tr-TR',{maximumFractionDigits:6})} ETH${est.tl!=null?` ≈ ${fmt(est.tl,2)} TL`:''}`:'—'}</td><td>{r.seconds!=null?r.seconds+' sn':'—'}</td><td>{r.status==='confirmed'?<span className="badge green"><span/>Onaylandı</span>:r.status==='pending'?<span className="badge amber"><span/>Bekliyor</span>:r.status==='failed'?<span className="badge red"><span/>Başarısız</span>:<span className="badge"><span/>İptal</span>}{r.transactions.find((t:any)=>t.error)?.error&&<small className="error">{r.transactions.find((t:any)=>t.error).error}</small>}</td></tr>;})}
    </tbody></table></div>}
    <p className="help">Süre: MetaMask’ta onaylandığı andan son işlemin bloğa girdiği ana kadar geçen süre. Gas ve ücret işlem makbuzundan alınır (gasUsed × effectiveGasPrice).</p>
+  </section>
+  <section className="panel panel-body" style={{marginTop:24}}><div className="section-head"><h2>Zincirdeki diplomalar</h2><input value={filter} onChange={e=>setFilter(e.target.value.toUpperCase())} placeholder="Kod ara: TEST-…" style={{maxWidth:240}} aria-label="Diploma kodu ara"/></div>
+   <p className="help">Her satır bir diploma. Sütunlar o diplomanın hangi yöntemle zincire yazıldığını gösterir: <b style={{color:'#c2410c'}}>NFT</b> = DiplomaNFT sözleşmesinde kendi token’ı var, <b style={{color:'#1655b8'}}>Merkle</b> = DiplomaAnchor sözleşmesindeki bir kökün içinde. “Kontrol et” sonucu tarayıcınızdan doğrudan Sepolia’dan okur.</p>
+   {!(data.records||[]).length?<div className="empty"><p>Henüz zincire kaydedilmiş diploma yok.</p></div>:<div className="table-wrap"><table><thead><tr><th>Diploma kodu</th><th>Tür</th><th>NFT (Yöntem 1)</th><th>Merkle (Yöntem 2)</th><th/></tr></thead><tbody>
+    {(data.records||[]).filter((r:any)=>!filter||r.code.includes(filter)).slice(0,100).map((r:any)=><Fragment key={r.code}>
+     <tr><td><code>{r.code}</code></td><td>{r.kind==='diploma'?<a href={'/diploma/'+r.code} target="_blank" rel="noopener noreferrer">Gerçek diploma</a>:<span className="muted">Ölçüm</span>}</td>
+      {(['nft','anchor'] as const).map(m=>{const x=r[m];return <td key={m}>{!x?<span className="muted">—</span>:<><span className={'badge '+(x.revoked?'red':m==='nft'?'amber':'blue')}><span/>{x.revoked?'İptal edildi':'Kayıtlı'}</span><small><a href={txUrl(x.txHash)} target="_blank" rel="noopener noreferrer">işlem {shortHash(x.txHash)}</a>{m==='nft'&&<> · <a href={tokenUrl(c.nft,tokenIdFromCode(r.code))} target="_blank" rel="noopener noreferrer">NFT</a></>}</small>{can&&!x.revoked&&<button className="text-link" style={{marginTop:4}} onClick={()=>{setRevokeCode(r.code);setRevokeMethod(m);document.getElementById('t4')?.scrollIntoView({behavior:'smooth'});}}>İptal için seç</button>}</>}</td>;})}
+      <td><button className="button secondary small-btn" onClick={()=>setOpen(open===r.code?'':r.code)}>{open===r.code?'Kapat':'Kontrol et'}</button></td></tr>
+     {open===r.code&&<tr><td colSpan={5}><ChainStatus code={r.code}/></td></tr>}
+    </Fragment>)}
+   </tbody></table></div>}
   </section>
   {log.length>0&&<section className="panel panel-body" style={{marginTop:24}}><h2><CheckCircle2 size={18}/> İşlem günlüğü</h2>{log.map((l:string,i:number)=><p key={i} className="help" style={{margin:'4px 0'}}>{l}</p>)}</section>}
  </main>;
