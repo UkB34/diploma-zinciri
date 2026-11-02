@@ -1,3 +1,7 @@
+# 2. aşama: Blokzincir testi (Sepolia)
+
+Onaylanan diplomalar Sepolia'ya iki yöntemle kaydedilip karşılaştırılıyor: devredilemez NFT koleksiyonu ve Merkle kökü ile toplu kayıt. Ayrıntılar, test senaryoları ve adımlar için [BLOCKCHAIN-TEST.md](BLOCKCHAIN-TEST.md) dosyasına bakın.
+
 # V3: Doğrulanabilir Dijital Kimlik (VC)
 
 Birim onayları artık yetkilinin tarayıcısındaki dijital kimlik ve üniversitenin verdiği Yetkili Onaycı VC'si ile veriliyor; dört onaydan sonra öğrenciye W3C diploma VC'si düzenleniyor. Kurulum ve güven modeli için [V3 kurulum notlarına](V3-SETUP.md) bakın. V2 notları ([V2-SETUP.md](V2-SETUP.md)) eski kayıtlar için korunur.

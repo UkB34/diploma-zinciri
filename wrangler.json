@@ -16,6 +16,10 @@
   ],
   "vars": {
     "APP_ORIGIN": "https://diploma-zinciri.bllufuk04.workers.dev",
-    "MAIL_FROM": "bllufuk04@gmail.com"
+    "MAIL_FROM": "bllufuk04@gmail.com",
+    "CHAIN_RPC": "https://ethereum-sepolia-rpc.publicnode.com",
+    "NFT_CONTRACT": "0x09917F2dEb350c50a626158d07017CB77953bB1C",
+    "ANCHOR_CONTRACT": "0x871C9551aEe5911d998C84F239AB9ACB79bf4f51",
+    "CHAIN_ISSUER": "0x15C21B5c00Ed0eD37ffE43cc0CDE1181c52b2847"
   }
 }

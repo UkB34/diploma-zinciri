@@ -7,6 +7,10 @@ declare namespace Cloudflare {
     BREVO_API_KEY?: string;
     MAIL_FROM?: string;
     APP_ORIGIN?: string;
+    CHAIN_RPC?: string;
+    NFT_CONTRACT?: string;
+    ANCHOR_CONTRACT?: string;
+    CHAIN_ISSUER?: string;
     BUCKET?: R2Bucket;
   }
 }
