@@ -14,7 +14,7 @@ export async function universityKey(){
  return cached.key as {privateKey:CryptoKey,publicJwk:any};
 }
 // Every issued VC gets a random, unique slot in the revocation list.
-export async function issueStored(kind:'approver'|'diploma',username:string|null,role:string|null,subject:string,build:(statusIndex:number,id:string)=>any){
+export async function issueStored(kind:'approver'|'diploma'|'bench',username:string|null,role:string|null,subject:string,build:(statusIndex:number,id:string)=>any){
  const key=await universityKey(),origin=appOrigin();
  for(let attempt=0;attempt<6;attempt++){
   const statusIndex=crypto.getRandomValues(new Uint32Array(1))[0]%STATUS_LIST_SIZE,id=randomId();
