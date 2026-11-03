@@ -1,6 +1,6 @@
 'use client';
 import {Fragment,useEffect,useMemo,useState} from 'react';
-import {ArrowLeft,Boxes,Network,ShieldCheck,AlertCircle,RefreshCw,Download,Wallet,CheckCircle2} from 'lucide-react';
+import {ArrowLeft,Boxes,Network,ShieldCheck,AlertCircle,Download,Wallet,CheckCircle2} from 'lucide-react';
 import {connectWallet,sendTransaction,methodLabel,shortHash} from '../../lib/chain-client';
 import {txUrl,addressUrl,feeEth,tokenUrl,tokenIdFromCode} from '../../lib/chain.mjs';
 import ChainStatus from '../chain-status';
@@ -47,7 +47,7 @@ export default function ChainLab(){
  const c=data.config,can=data.canAct,avail=data.available||{};
  return <main className="content lab" style={{maxWidth:1100,margin:'32px auto',padding:'0 16px'}}>
   <a href="/" className="back"><ArrowLeft size={16}/>Çalışma alanı</a>
-  <div className="page-title"><div><p className="eyebrow">2. AŞAMA · SEPOLIA TEST AĞI</p><h1>Blokzincir kayıt testi</h1><p>İki yöntem aynı diplomalarla, aynı ağda karşılaştırılır. Gas ve süre değerleri işlem makbuzlarından otomatik alınır.</p></div><button className="button secondary" onClick={load} disabled={!!busy}><RefreshCw size={16}/>Yenile</button></div>
+  <div className="page-title"><div><p className="eyebrow">2. AŞAMA · SEPOLIA TEST AĞI</p><h1>Blokzincir kayıt testi</h1><p>İki yöntem aynı diplomalarla, aynı ağda karşılaştırılır. Gas ve süre değerleri işlem makbuzlarından otomatik alınır.</p></div></div>
   {error&&<div className="error" role="alert"><AlertCircle size={18}/>{error}</div>}
   {!can&&<p className="notice">Bu sayfayı görüntüleyebilirsiniz; zincire kayıt işlemlerini yalnızca merkez yetkilisi yapabilir.</p>}
   <div className="verify-layout">
