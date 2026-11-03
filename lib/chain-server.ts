@@ -35,7 +35,7 @@ export async function createBenchDiplomas(count:number){
 // Diplomas not yet registered with the method and not part of an open (prepared/submitted) batch.
 async function candidates(method:Method,source:'bench'|'issued',limit:number,withHash=true){
  const kind=source==='bench'?'bench':'diploma';
- const open=await env.DB!.prepare("SELECT payload FROM chain_batches WHERE method=? AND action='register' AND status IN ('prepared','submitted') AND created_at>?").bind(method,now()-1800000).all<{payload:string}>();
+ const open=await env.DB!.prepare("SELECT payload FROM chain_batches WHERE method=? AND action IN ('register','diploma') AND status IN ('prepared','submitted') AND created_at>?").bind(method,now()-1800000).all<{payload:string}>();
  const busy=new Set((open.results||[]).flatMap((r:{payload:string})=>(JSON.parse(r.payload) as Item[]).map(i=>i.code)));
  const rows=await env.DB!.prepare("SELECT c.subject AS code, c.jwt AS jwt FROM credentials c LEFT JOIN chain_records r ON r.method=? AND r.code=c.subject WHERE c.kind=? AND c.revoked=0 AND r.code IS NULL ORDER BY c.created_at").bind(method,kind).all<{code:string,jwt:string}>();
  const out:Item[]=[];
@@ -47,7 +47,7 @@ export async function availableCounts(){
  for(const method of ['nft','anchor'] as Method[])for(const source of ['bench','issued'] as const)res[method+'_'+source]=(await candidates(method,source,100000,false)).length;
  return res;
 }
-async function insertBatch(runId:string,runSize:number,method:Method,action:'register'|'revoke',items:Item[],data:string,root:string|null,user:string){
+async function insertBatch(runId:string,runSize:number,method:Method,action:'register'|'diploma'|'revoke',items:Item[],data:string,root:string|null,user:string){
  const id=crypto.randomUUID();
  await env.DB!.prepare('INSERT INTO chain_batches (id,run_id,run_size,method,action,size,data_hash,payload,root,status,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
   .bind(id,runId,runSize,method,action,items.length,await sha256Hex(strip0x(data)),JSON.stringify(items),root,'prepared',user,now()).run();
@@ -71,6 +71,19 @@ export async function prepareRun(method:Method,source:'bench'|'issued',size:numb
   txs.push(await insertBatch(runId,size,method,'register',items,encodeAnchor(tree.root,items.length),tree.root,user));
  }
  return {runId,transactions:txs};
+}
+// Registers one specific, fully approved diploma (protocol 3, all four VC approvals) with the chosen method.
+// Merkle: a batch of one, so the root is the diploma's own VC hash and the proof is empty.
+export async function prepareDiploma(method:Method,code:string,user:string){
+ if(!['nft','anchor'].includes(method))throw Error('Geçersiz yöntem.');
+ const cred=await env.DB!.prepare("SELECT jwt FROM credentials WHERE kind='diploma' AND subject=? AND revoked=0").bind(code).first<{jwt:string}>();
+ if(!cred)throw Error('Bu kodla düzenlenmiş geçerli bir diploma VC’si yok.');
+ if(await env.DB!.prepare('SELECT 1 FROM chain_records WHERE method=? AND code=?').bind(method,code).first())throw Error('Bu diploma bu yöntemle zaten zincire kaydedilmiş.');
+ const open=await env.DB!.prepare("SELECT payload FROM chain_batches WHERE method=? AND action IN ('register','diploma') AND status IN ('prepared','submitted') AND created_at>?").bind(method,now()-1800000).all<{payload:string}>();
+ if((open.results||[]).some((r:{payload:string})=>(JSON.parse(r.payload) as Item[]).some(i=>i.code===code)))throw Error('Bu diploma için bekleyen bir işlem var. Birkaç dakika sonra tekrar deneyin.');
+ const hash=await vcHash(cred.jwt),item:Item={code,hash,proof:[]},runId=crypto.randomUUID();
+ const data=method==='nft'?encodeMintBatch([tokenIdFromCode(code)],[hash]):encodeAnchor(hash,1);
+ return {runId,transactions:[await insertBatch(runId,1,method,'diploma',[item],data,method==='anchor'?hash:null,user)]};
 }
 export async function prepareRevoke(method:Method,code:string,user:string){
  const rec=await env.DB!.prepare('SELECT vc_hash,revoked_batch FROM chain_records WHERE method=? AND code=?').bind(method,code).first<{vc_hash:string,revoked_batch:string|null}>();
@@ -104,7 +117,7 @@ export async function confirmBatch(batchId:string){
   .bind(ok?'confirmed':'failed',String(tx?.from||'').toLowerCase(),Number(hexToBigInt(receipt.blockNumber)),Number(hexToBigInt(block?.timestamp))*1000,hexToBigInt(receipt.gasUsed).toString(),hexToBigInt(receipt.effectiveGasPrice).toString(),error,now(),batchId)];
  if(ok){
   for(const it of JSON.parse(b.payload) as Item[]){
-   if(b.action==='register')stmts.push(env.DB!.prepare('INSERT OR IGNORE INTO chain_records (method,code,vc_hash,batch_id,proof) VALUES (?,?,?,?,?)').bind(b.method,it.code,it.hash,b.id,it.proof?JSON.stringify(it.proof):null));
+   if(b.action!=='revoke')stmts.push(env.DB!.prepare('INSERT OR IGNORE INTO chain_records (method,code,vc_hash,batch_id,proof) VALUES (?,?,?,?,?)').bind(b.method,it.code,it.hash,b.id,it.proof?JSON.stringify(it.proof):null));
    else stmts.push(env.DB!.prepare('UPDATE chain_records SET revoked_batch=? WHERE method=? AND code=?').bind(b.id,b.method,it.code));
   }
  }
@@ -134,7 +147,7 @@ export async function chainStatus(query:{code?:string,hash?:string}){
   }catch(e){error=e instanceof Error?e.message:'Zincir okunamadı.';}
   records.push({method:r.method,code:r.code,vcHash:r.vc_hash,proof,txHash:r.tx_hash,blockTime:r.block_time,contract:r.method==='nft'?cfg.nft:cfg.anchor,tokenId:r.method==='nft'?tokenIdFromCode(r.code).toString():null,onChain,error});
  }
- return {chain:{chainId:cfg.chainId,rpc:cfg.rpc,explorer:cfg.explorer,nft:cfg.nft,anchor:cfg.anchor},records};
+ return {chain:{chainId:cfg.chainId,rpc:cfg.rpc,explorer:cfg.explorer,nft:cfg.nft,anchor:cfg.anchor,issuer:cfg.issuer},records};
 }
 // Measurement report: one row per run (NFT runs may contain several transactions).
 export async function report(){
