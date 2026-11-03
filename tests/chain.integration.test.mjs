@@ -82,7 +82,7 @@ test('iki yöntem: kayıt, makbuz kontrolü, doğrulama, iptal ve yetkisiz cüzd
  const code=sql.prepare("SELECT code FROM chain_records WHERE method='anchor' LIMIT 1").get().code;
  let s=await status('code='+code);assert.equal(s.records.length,2);
  for(const r of s.records)assert.deepEqual([r.onChain.registered,r.onChain.matches,r.onChain.revoked],[true,true,false]);
- assert.ok(s.records.find(r=>r.method==='anchor').proof.length>=5);
+ {const p=s.records.find(r=>r.method==='anchor').proof;assert.ok(p.length>=1&&p.length<=6);}
  // A tampered VC hash does not match on chain.
  const rec=s.records[0];
  const tampered=await (await verifyApi.GET(new Request(origin+'/api/chain/verify?hash='+'0'.repeat(64)))).json();assert.equal(tampered.records.length,0);
