@@ -22,6 +22,7 @@ const auth=await import(moduleUrl('app/api/auth/route.ts'));
 const api=await import(moduleUrl('app/api/chain/route.ts'));
 const verifyApi=await import(moduleUrl('app/api/chain/verify/route.ts'));
 const nftApi=await import(moduleUrl('app/api/nft/[id]/route.ts'));
+const imageApi=await import(moduleUrl('app/api/nft-image/[id]/route.ts'));
 const req=(body,cookie)=>{globalThis.__headers=new Headers({cookie});return new Request(origin+'/api/chain',{method:'POST',headers:{origin,host:'test.example',cookie,'Content-Type':'application/json','cf-connecting-ip':'1.1.1.1'},body:JSON.stringify(body)});};
 const login=async u=>(await auth.POST(req({username:u,password:'pw'},''))).headers.get('set-cookie').split(';')[0];
 
@@ -87,6 +88,9 @@ test('iki yöntem: kayıt, makbuz kontrolü, doğrulama, iptal ve yetkisiz cüzd
  const tampered=await (await verifyApi.GET(new Request(origin+'/api/chain/verify?hash='+'0'.repeat(64)))).json();assert.equal(tampered.records.length,0);
  const meta=await (await nftApi.GET(new Request(origin+'/api/nft/'+chain.tokenIdFromCode(code).toString()))).json();
  assert.equal(meta.attributes.find(a=>a.trait_type==='Diploma kodu').value,code);assert.equal(JSON.stringify(meta).includes('Test Mezun'),false);
+ assert.equal(meta.image,origin+'/api/nft-image/'+chain.tokenIdFromCode(code).toString());
+ const img=await imageApi.GET(new Request(meta.image));assert.equal(img.headers.get('content-type'),'image/svg+xml; charset=utf-8');const svg=await img.text();assert.ok(svg.startsWith('<svg')&&svg.includes(code)&&svg.includes('ÖLÇÜM TESTİ'));assert.equal(svg.includes('Test Mezun'),false);
+ assert.equal((await imageApi.GET(new Request(origin+'/api/nft-image/1'))).status,404);
  // Revocation on both contracts.
  for(const method of ['nft','anchor']){prep=(await post(central,{action:'revoke',method,code})).body;assert.equal((await runAndConfirm(central,prep)).status,'confirmed');}
  s=await status('code='+code);for(const r of s.records)assert.equal(r.onChain.revoked,true);

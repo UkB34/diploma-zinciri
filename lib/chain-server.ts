@@ -167,16 +167,44 @@ export async function report(){
  return list;
 }
 export const benchCount=async()=>(await env.DB!.prepare("SELECT count(*) AS n FROM credentials WHERE kind='bench'").first<{n:number}>())?.n||0;
-export async function nftMetadata(tokenId:string){
+async function nftInfo(tokenId:string){
  const {codeFromTokenId}=await import('./chain.mjs');
  const code=codeFromTokenId(BigInt(tokenId));
  const rec=await env.DB!.prepare("SELECT vc_hash,revoked_batch FROM chain_records WHERE method='nft' AND code=?").bind(code).first<{vc_hash:string,revoked_batch:string|null}>();
  if(!rec)return null;
- const cred=await env.DB!.prepare('SELECT kind,jwt FROM credentials WHERE subject=?').bind(code).first<{kind:string,jwt:string}>();
- const issuer=cred?decodeJwt(cred.jwt).payload.issuer?.id:null;
- return {name:'Diploma '+code,description:'Diploma Zinciri: devredilemez (soulbound) diploma kaydı. Zincirde yalnızca diploma VC’sinin SHA-256 özeti tutulur; kişisel veri içermez. Test ağı (Sepolia) prototipi.',
-  external_url:appOrigin()+(cred?.kind==='diploma'?'/diploma/'+code:'/dogrula'),
-  attributes:[{trait_type:'Diploma kodu',value:code},{trait_type:'VC SHA-256',value:rec.vc_hash},{trait_type:'Düzenleyen (DID)',value:issuer},{trait_type:'Durum',value:rec.revoked_batch?'İptal edildi':'Geçerli'},{trait_type:'Tür',value:cred?.kind==='bench'?'Ölçüm testi':'Diploma'}]};
+ const cred=await env.DB!.prepare('SELECT kind,jwt,revoked FROM credentials WHERE subject=?').bind(code).first<{kind:string,jwt:string,revoked:number}>();
+ const vc:any=cred?decodeJwt(cred.jwt).payload:null;
+ return {code,vcHash:rec.vc_hash,revoked:!!rec.revoked_batch||!!cred?.revoked,bench:cred?.kind==='bench',kind:cred?.kind,issuer:vc?.issuer?.id||null,university:String(vc?.credentialSubject?.diploma?.university||'Diploma Zinciri'),issuedAt:vc?.validFrom||null};
+}
+export async function nftMetadata(tokenId:string){
+ const n=await nftInfo(tokenId);if(!n)return null;
+ return {name:'Diploma '+n.code,description:'Diploma Zinciri: devredilemez (soulbound) diploma kaydı. Zincirde yalnızca diploma VC’sinin SHA-256 özeti tutulur; kişisel veri içermez. Test ağı (Sepolia) prototipi.',
+  image:appOrigin()+'/api/nft-image/'+BigInt(tokenId).toString(),
+  external_url:appOrigin()+(n.kind==='diploma'?'/diploma/'+n.code:'/dogrula'),
+  attributes:[{trait_type:'Diploma kodu',value:n.code},{trait_type:'Üniversite',value:n.university},{trait_type:'VC SHA-256',value:n.vcHash},{trait_type:'Düzenleyen (DID)',value:n.issuer},{trait_type:'Durum',value:n.revoked?'İptal edildi':'Geçerli'},{trait_type:'Tür',value:n.bench?'Ölçüm testi':'Diploma'}]};
+}
+const esc=(v:string)=>v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'} as any)[c]);
+// Badge image for wallets/explorers. No personal data: university, code, status and the VC hash prefix only.
+export async function nftImage(tokenId:string){
+ const n=await nftInfo(tokenId);if(!n)return null;
+ const uni=n.university.length>34?n.university.slice(0,33)+'…':n.university;
+ const [c1,c2]=n.revoked?['#7f1d1d','#b91c1c']:n.bench?['#334155','#64748b']:['#0f4f49','#177c71'];
+ const status=n.revoked?'İPTAL EDİLDİ':n.bench?'ÖLÇÜM TESTİ':'GEÇERLİ';
+ const year=n.issuedAt?new Date(n.issuedAt).getUTCFullYear():'';
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
+<rect width="600" height="600" rx="36" fill="url(#g)"/>
+<rect x="28" y="28" width="544" height="544" rx="26" fill="none" stroke="#ffffff" stroke-opacity=".35" stroke-width="2"/>
+<g transform="translate(300 165)" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+<path d="M0 -62 L52 -42 V8 C52 42 28 62 0 74 C-28 62 -52 42 -52 8 V-42 Z" fill="#ffffff" fill-opacity=".12"/><path d="M-22 6 L-6 22 L26 -12"/></g>
+<text x="300" y="292" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="56" font-weight="700" fill="#ffffff" letter-spacing="6">DİPLOMA</text>
+<text x="300" y="336" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#ffffff" fill-opacity=".92">${esc(uni)}</text>
+<rect x="150" y="372" width="300" height="44" rx="22" fill="#ffffff" fill-opacity=".16"/>
+<text x="300" y="401" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#ffffff" letter-spacing="3">${status}${year?' · '+year:''}</text>
+<text x="300" y="466" text-anchor="middle" font-family="'Courier New', monospace" font-size="21" fill="#ffffff">${esc(n.code)}</text>
+<text x="300" y="498" text-anchor="middle" font-family="'Courier New', monospace" font-size="14" fill="#ffffff" fill-opacity=".7">VC SHA-256 ${esc(n.vcHash.slice(0,16))}…</text>
+<text x="300" y="540" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#ffffff" fill-opacity=".75" letter-spacing="2">DIPLOMA ZİNCİRİ · SOULBOUND · SEPOLIA TEST</text>
+</svg>`;
 }
 // Diplomas on chain (latest first), one row per code with the status of each method.
 export async function recentRecords(limit=300){
