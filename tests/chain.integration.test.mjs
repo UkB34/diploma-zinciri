@@ -100,6 +100,19 @@ test('iki yöntem: kayıt, makbuz kontrolü, doğrulama, iptal ve yetkisiz cüzd
  prep=(await post(central,{action:'prepare',method:'anchor',size:2,source:'bench'})).body;revertNext=true;
  out=await runAndConfirm(central,prep);assert.equal(out.status,'failed');
  assert.equal(sql.prepare("SELECT count(*) AS n FROM chain_records WHERE method='anchor'").get().n,50);
+ // A fully approved (real) diploma is registered on its own with both methods; measurement runs are unaffected.
+ const realCode='TEST-'+'AB12'.repeat(5);
+ const uni=await vc.importUniversityKey(JSON.parse(globalThis.__env.UNIVERSITY_KEY_JSON));
+ const realJwt=await vc.issueCredential(uni,origin,vc.diplomaCredential({id:vc.randomId(),code:realCode,content:{name:'Zeynep Deniz',university:'Örnek',faculty:'Müh',program:'Bilg',transcript:{hash:'c'.repeat(64)}},version:1,documentHash:'d'.repeat(64),approvals:[],statusIndex:7,origin}));
+ sql.prepare("INSERT INTO credentials (id,kind,username,role,subject,status_index,jwt,created_at) VALUES ('urn:real','diploma',NULL,NULL,?,7,?,?)").run(realCode,realJwt,Date.now());
+ assert.equal((await post(faculty,{action:'register-diploma',method:'nft',code:realCode})).status,403);
+ assert.equal((await post(central,{action:'register-diploma',method:'nft',code:'TEST-'+'F'.repeat(20)})).status,400);
+ for(const method of ['nft','anchor']){prep=(await post(central,{action:'register-diploma',method,code:realCode})).body;assert.equal(prep.transactions[0].count,1);assert.equal((await runAndConfirm(central,prep)).status,'confirmed');}
+ assert.equal((await post(central,{action:'register-diploma',method:'anchor',code:realCode})).status,400);
+ s=await status('code='+realCode);assert.equal(s.records.length,2);for(const r of s.records)assert.deepEqual([r.onChain.registered,r.onChain.matches,r.onChain.revoked],[true,true,false]);
+ assert.equal(s.records.find(r=>r.method==='anchor').proof.length,0);assert.equal(s.chain.issuer.toLowerCase(),ISSUER);
+ globalThis.__headers=new Headers({cookie:central});info=await (await api.GET()).json();
+ assert.equal(info.runs.filter(r=>r.action==='diploma').length,2);assert.ok(info.records.find(r=>r.code===realCode&&r.kind==='diploma'&&r.nft&&r.anchor));
  // Cancelled MetaMask prompt frees the diplomas again; bad tx hashes are refused.
  prep=(await post(central,{action:'prepare',method:'anchor',size:4,source:'bench'})).body;
  assert.equal((await post(central,{action:'submit',batchId:prep.transactions[0].batchId,txHash:'0x123'})).status,400);

@@ -1,7 +1,7 @@
 import {getAppUser} from '../../../lib/auth';
 import {validOrigin} from '../../../lib/auth-crypto.mjs';
 import {json,limitedBody} from '../../../lib/server-utils';
-import {chainConfig,createBenchDiplomas,prepareRun,prepareRevoke,submitBatch,cancelBatch,confirmBatch,unauthorizedTest,report,benchCount,availableCounts,recentRecords} from '../../../lib/chain-server';
+import {chainConfig,createBenchDiplomas,prepareRun,prepareRevoke,prepareDiploma,submitBatch,cancelBatch,confirmBatch,unauthorizedTest,report,benchCount,availableCounts,recentRecords} from '../../../lib/chain-server';
 export const dynamic='force-dynamic';
 export async function GET(){
  const user=await getAppUser();if(!user)return json({error:'Oturum gerekli.'},401);
@@ -17,6 +17,7 @@ export async function POST(req:Request){
   switch(body.action){
    case 'generate':return json({created:(await createBenchDiplomas(Number(body.count))).length,benchCount:await benchCount()});
    case 'prepare':if(!method)break;return json(await prepareRun(method,body.source==='issued'?'issued':'bench',Number(body.size),user.username));
+   case 'register-diploma':if(!method||!/^TEST-[A-F0-9]{20}$/.test(body.code||''))break;return json(await prepareDiploma(method,body.code,user.username));
    case 'revoke':if(!method||!/^TEST-[A-F0-9]{20}$/.test(body.code||''))break;return json(await prepareRevoke(method,body.code,user.username));
    case 'submit':await submitBatch(String(body.batchId||''),String(body.txHash||''));return json({ok:true});
    case 'cancel':await cancelBatch(String(body.batchId||''));return json({ok:true});
