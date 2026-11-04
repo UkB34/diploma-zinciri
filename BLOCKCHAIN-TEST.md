@@ -7,7 +7,7 @@ Danışman isteği: diplomaları zincire kaydetmek için iki yöntemi denemek ve
 | Sözleşme | `contracts/DiplomaNFT.sol` | `contracts/DiplomaAnchor.sol` |
 | Sepolia adresi | `0x09917F2dEb350c50a626158d07017CB77953bB1C` | `0x871C9551aEe5911d998C84F239AB9ACB79bf4f51` |
 | Zincire yazılan | Her diploma için bir devredilemez (ERC-5192) token ve VC özeti | Paket başına tek bir Merkle kökü |
-| İşlem sayısı | Diploma sayısıyla artar (işlem başına en fazla 150) | Paket başına 1 |
+| İşlem sayısı | Diploma sayısıyla artar (işlem başına en fazla 60) | Paket başına 1 |
 | İptal | `revoke(tokenId)` | `revokeLeaf(vcHash)` |
 
 Üniversite cüzdanı (sözleşmeleri yayınlayan ve tek yetkili): `0x15C21B5c00Ed0eD37ffE43cc0CDE1181c52b2847`
@@ -42,7 +42,7 @@ Zincirde kişisel veri yok. Yalnızca diploma VC'sinin SHA-256 özeti (veya öze
 2. **MetaMask'ı bağla.** Seçili hesap üniversite cüzdanı olmalı, ağ Sepolia olmalı.
 3. **261 test diploması üret** (1 + 10 + 50 + 200). Her iki yöntem aynı diplomaları kullanır.
 4. Önce **Merkle** yöntemiyle 1, 10, 50 ve 200 diplomayı kaydet. Her biri tek MetaMask onayı ister.
-5. Sonra **NFT** yöntemiyle aynı boyutları kaydet. 200 diploma 2 işlem (150 + 50) olur.
+5. Sonra **NFT** yöntemiyle aynı boyutları kaydet. 200 diploma 4 işlem (60 + 60 + 60 + 20) olur: bir NFT basımı ~226 bin gas tutuyor ve tek bir işlem en fazla 16,7 milyon gas kullanabiliyor (EIP-7825).
 6. T4 ve T5'i çalıştır. T2 ve T3'ü gerçek bir diplomayla dene ("Kaynak: Gerçek diplomalar").
 7. Ana ağ gas fiyatını ve ETH kurunu girip CSV'yi indir.
 

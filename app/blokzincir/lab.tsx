@@ -25,13 +25,17 @@ export default function ChainLab(){
  }
  async function execute(prep:any,label:string){
   const from=account||await wallet();
+  const left=new Set(prep.transactions.map((t:any)=>t.batchId));
+  try{
   for(const [i,tx] of prep.transactions.entries()){
    note(`${label}: ${i+1}/${prep.transactions.length}. işlem (${tx.count} diploma) MetaMask onayı bekliyor`);
    let hash:string;
-   try{hash=await sendTransaction(from,tx.to,tx.data);}catch(e){await post({action:'cancel',batchId:tx.batchId});throw e;}
+   hash=await sendTransaction(from,tx.to,tx.data);
    await post({action:'submit',batchId:tx.batchId,txHash:hash});note('Gönderildi: '+shortHash(hash));
+   left.delete(tx.batchId);
    await confirm(tx.batchId);
   }
+  }finally{for(const id of left)await post({action:'cancel',batchId:id}).catch(()=>{});}
  }
  const runs=data?.runs||[];
  const pending=runs.flatMap((r:any)=>r.transactions.filter((t:any)=>t.status==='submitted'));
@@ -71,7 +75,7 @@ export default function ChainLab(){
     <label>Diploma sayısı<select value={size} onChange={e=>setSize(Number(e.target.value))}>{SIZES.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
     <label>Kaynak<select value={source} onChange={e=>setSource(e.target.value as any)}><option value="bench">Ölçüm diplomaları</option><option value="issued">Gerçek diplomalar (onay sürecinden)</option></select></label>
    </div>
-   <p className="help">{method==='nft'?`NFT yönteminde her diploma ayrı token olarak basılır; ${size>150?'150’den fazla diploma birden çok işleme bölünür.':'tek işlemde toplu basım yapılır.'}`:'Merkle yönteminde paket boyutundan bağımsız olarak tek işlemle yalnızca kök yazılır.'} MetaMask’ta gösterilen ücret SepoliaETH’dir; gerçek para harcanmaz.</p>
+   <p className="help">{method==='nft'?`NFT yönteminde her diploma ayrı token olarak basılır; ${size>60?'60’tan fazla diploma birden çok işleme bölünür (tek işlemin gas sınırı 16,7 milyon).':'tek işlemde toplu basım yapılır.'}`:'Merkle yönteminde paket boyutundan bağımsız olarak tek işlemle yalnızca kök yazılır.'} MetaMask’ta gösterilen ücret SepoliaETH’dir; gerçek para harcanmaz.</p>
    <button className="button primary" disabled={!!busy} onClick={()=>guard('run',async()=>{const prep=await post({action:'prepare',method,size,source});await execute(prep,`${methodLabel(method)} · ${size} diploma`);})}>{busy==='run'?'İşlem sürüyor…':'MetaMask ile kaydet'}</button>
    {pending.length>0&&<button className="button secondary" style={{marginLeft:8}} disabled={!!busy} onClick={()=>guard('pending',async()=>{for(const t of pending)await confirm(t.id);})}>Bekleyenleri güncelle ({pending.length})</button>}
   </section>}

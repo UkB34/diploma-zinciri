@@ -12,7 +12,7 @@ test('ABI kodlaması bağımsız referansla birebir aynı', () => {
  assert.equal(chain.encodeNftVerify(BigInt(v.ids[0]), v.hashes[0]), v.nftVerify);
  assert.equal(chain.encodeAnchorVerify(v.leaves[6], v.proofs[6]), v.anchorVerify);
  assert.throws(() => chain.encodeMintBatch([1n], []));
- assert.throws(() => chain.encodeMintBatch(Array(151).fill(1n), Array(151).fill(v.hashes[0])));
+ assert.throws(() => chain.encodeMintBatch(Array(61).fill(1n), Array(61).fill(v.hashes[0])));
  assert.throws(() => chain.encodeAnchor(v.root, 0));
 });
 

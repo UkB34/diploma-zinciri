@@ -69,14 +69,14 @@ test('iki yöntem: kayıt, makbuz kontrolü, doğrulama, iptal ve yetkisiz cüzd
  // Merkle: 50 diplomas in one transaction.
  let prep=(await post(central,{action:'prepare',method:'anchor',size:50,source:'bench'})).body;assert.equal(prep.transactions.length,1);assert.equal(prep.transactions[0].to.toLowerCase(),ANCHOR);
  assert.equal((await runAndConfirm(central,prep)).status,'confirmed');
- // NFT: 160 diplomas → 2 transactions (150 + 10).
- prep=(await post(central,{action:'prepare',method:'nft',size:160,source:'bench'})).body;assert.deepEqual(prep.transactions.map(t=>t.count),[150,10]);
+ // NFT: 160 diplomas → 3 transactions (60 + 60 + 40), each under the per-transaction gas cap.
+ prep=(await post(central,{action:'prepare',method:'nft',size:160,source:'bench'})).body;assert.deepEqual(prep.transactions.map(t=>t.count),[60,60,40]);
  assert.equal((await runAndConfirm(central,prep)).status,'confirmed');
  assert.equal((await post(central,{action:'prepare',method:'nft',size:1,source:'bench'})).status,400); // nothing left
  globalThis.__headers=new Headers({cookie:central});info=await (await api.GET()).json();
  assert.equal(info.records.length,160);assert.ok(info.records.every(r=>r.nft&&r.kind==='bench'));assert.equal(info.records.filter(r=>r.anchor).length,50);
  const nftRun=info.runs.find(r=>r.method==='nft'),anchorRun=info.runs.find(r=>r.method==='anchor');
- assert.equal(nftRun.txCount,2);assert.equal(nftRun.size,160);assert.equal(nftRun.status,'confirmed');assert.equal(nftRun.gasUsed,String(60000*160+60000));
+ assert.equal(nftRun.txCount,3);assert.equal(nftRun.size,160);assert.equal(nftRun.status,'confirmed');assert.equal(nftRun.gasUsed,String(60000*160+90000));
  assert.equal(anchorRun.txCount,1);assert.equal(anchorRun.gasUsed,'90000');assert.ok(anchorRun.seconds!=null);
  // Verification of one diploma registered with both methods.
  const code=sql.prepare("SELECT code FROM chain_records WHERE method='anchor' LIMIT 1").get().code;
