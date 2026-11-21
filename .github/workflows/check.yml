@@ -13,5 +13,6 @@ jobs:
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      - run: pip install cryptography && python3 -m unittest discover -s tools/solana -p 'test_*.py'
       - run: pnpm check
       - run: pnpm build
