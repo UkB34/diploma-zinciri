@@ -18,7 +18,7 @@ zincirden kontrol edebilir; bunun için hiçbir listeye gerek yoktur.
 ## 1. Hazırlık (bir kez)
 
 1. **Python:** Komut İstemi'nde `python --version` ile kontrol edin, sonra şunu çalıştırın:
-   `pip install cryptography`
+   `python -m pip install cryptography truststore`
 2. **Bu klasörü** (`diploma_nft.py`, `rozet.png`, `rozet-temsili.png`) bilgisayarınızda bir yere koyun, örneğin
    `Belgeler\Diploma Zinciri\solana`.
 3. **Cüzdan anahtarı:** Phantom → sol üstteki hesap → **Ayarlar → Hesabı yönet** (hesabınız) → **Özel anahtarı göster**
