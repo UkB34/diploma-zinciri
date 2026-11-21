@@ -342,31 +342,43 @@ def cmd_bas(a):
 
     # IPFS: önce rozet görselleri ve diploma dosyaları, sonra bunlara işaret eden metadata dosyaları
     gw = a.gateway.rstrip("/") + "/"
-    if st.get("cid_files") is None or st.get("file_hashes") != sorted(d["hash"] for d in diplomas):
+    # Pinata'nın ücretsiz planı klasördeki her dosyayı ayrı sayar (~500). Bu yüzden belge dosyaları yalnızca gerçek
+    # diplomalar için yüklenir; temsili diplomalar ortak tek bir metadata dosyasını gösterir (VC özetleri yine zincirde).
+    real = [d for d in diplomas if d["type"] == "Diploma"]
+    ipfs_key = ["v2"] + sorted(d["hash"] for d in real)
+    if st.get("cid_meta") is None or st.get("ipfs_key") != ipfs_key:
         jwt = os.environ.get("PINATA_JWT") or getpass.getpass("Pinata JWT (yazdığınız görünmez): ").strip()
         files = [("rozet.png", (HERE / "rozet.png").read_bytes(), "image/png"),
                  ("rozet-temsili.png", (HERE / "rozet-temsili.png").read_bytes(), "image/png")]
-        files += [(f"vc/{d['hash']}.jwt", d["jwt"].encode(), "application/vc+jwt") for d in diplomas]
-        print("IPFS: diploma dosyaları yükleniyor…")
+        files += [(f"vc/{d['hash']}.jwt", d["jwt"].encode(), "application/vc+jwt") for d in real]
+        print(f"IPFS: rozetler ve {len(real)} gerçek diploma belgesi yükleniyor…")
         cid_files = pinata_upload(jwt, f"diploma-zinciri-{year}-belgeler", files)
-        metas = [("koleksiyon.json", json.dumps({"name": f"{uni} - {year} Mezunları", "symbol": f"DZ{str(year)[-2:]}",
+        sym = f"DZ{str(year)[-2:]}"
+        metas = [("koleksiyon.json", json.dumps({"name": f"{uni} - {year} Mezunları", "symbol": sym,
                   "description": f"{uni} {year} mezuniyet belgeleri. Her mezun bu koleksiyonun ayrı bir parçasıdır. Diploma Zinciri prototipi.",
-                  "image": f"{gw}{cid_files}/rozet.png", "external_url": SITE + "/dogrula"}, ensure_ascii=False).encode(), "application/json")]
-        for d in diplomas:
-            img = f"{gw}{cid_files}/{'rozet-temsili.png' if d['type'] == 'Temsili' else 'rozet.png'}"
+                  "image": f"{gw}{cid_files}/rozet.png", "external_url": SITE + "/dogrula"}, ensure_ascii=False).encode(), "application/json"),
+                 ("temsili.json", json.dumps({"name": f"Temsili Diploma {year}", "symbol": sym,
+                  "description": f"{uni} {year} temsili mezuniyet belgesi (test verisi). Bu NFT'ye ait diploma VC'sinin SHA-256 özeti zincirdeki "
+                                 "'VC SHA-256' özelliğindedir; belge dosyası IPFS'e konmamıştır, üniversitenin kendi deposunda durur. NFT devredilemez.",
+                  "image": f"{gw}{cid_files}/rozet-temsili.png", "external_url": SITE + "/dogrula",
+                  "attributes": [{"trait_type": "Yıl", "value": str(year)}, {"trait_type": "Tür", "value": "Temsili"}],
+                  "properties": {"category": "image", "files": [{"uri": f"{gw}{cid_files}/rozet-temsili.png", "type": "image/png"}]}}, ensure_ascii=False).encode(), "application/json")]
+        for d in real:
+            img = f"{gw}{cid_files}/rozet.png"
             metas.append((f"meta/{d['hash']}.json", json.dumps({
-                "name": nft_name(d, year), "symbol": f"DZ{str(year)[-2:]}",
-                "description": f"{uni} {year} mezuniyet belgesi ({'temsili' if d['type'] == 'Temsili' else 'gerçek'}). Belgenin kendisi, "
-                               "üniversitenin imzaladığı W3C diploma VC dosyasıdır (properties.files). Zincirde VC'nin SHA-256 özeti tutulur; NFT devredilemez.",
+                "name": nft_name(d, year), "symbol": sym,
+                "description": f"{uni} {year} mezuniyet belgesi. Belgenin kendisi, üniversitenin imzaladığı W3C diploma VC dosyasıdır "
+                               "(properties.files). Zincirde VC'nin SHA-256 özeti tutulur; NFT devredilemez.",
                 "image": img, "external_url": SITE + "/dogrula",
                 "attributes": [{"trait_type": k, "value": v} for k, v in chain_attrs(d, year)],
                 "properties": {"category": "image", "files": [{"uri": img, "type": "image/png"},
                                {"uri": f"{gw}{cid_files}/vc/{d['hash']}.jwt", "type": "application/vc+jwt"}]}}, ensure_ascii=False).encode(), "application/json"))
-        print("IPFS: metadata dosyaları yükleniyor…")
+        print(f"IPFS: {len(metas)} metadata dosyası yükleniyor…")
         st["cid_meta"] = pinata_upload(jwt, f"diploma-zinciri-{year}-metadata", metas)
-        st["cid_files"], st["file_hashes"] = cid_files, sorted(d["hash"] for d in diplomas)
+        st["cid_files"], st["ipfs_key"] = cid_files, ipfs_key
         save_state(state_path, st)
-    meta_uri = lambda h: f"{gw}{st['cid_meta']}/meta/{h}.json"
+    real_hashes = {d["hash"] for d in real}
+    meta_uri = lambda h: f"{gw}{st['cid_meta']}/" + (f"meta/{h}.json" if h in real_hashes else "temsili.json")
     print(f"IPFS belgeler: {gw}{st['cid_files']}  ·  metadata: {gw}{st['cid_meta']}")
 
     if coll_kp:

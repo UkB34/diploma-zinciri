@@ -9,7 +9,8 @@ imzalanır.
 | Koleksiyon: "Örnek Üniversite - 2026 Mezunları" | Zincir (Metaplex Core) |
 | Devredilemez (kalıcı dondurma) | Zincir |
 | VC SHA-256, Durum, Yıl, Tür, Düzenleyen | Zincir (Attributes) |
-| Mezuniyet belgesi (imzalı diploma VC dosyası), rozet görseli, açıklama | IPFS (Pinata) |
+| Gerçek diplomalar: mezuniyet belgesi (imzalı diploma VC dosyası), rozet, açıklama | IPFS (Pinata) |
+| Temsili diplomalar: ortak tek metadata dosyası (belge dosyaları bilgisayarda kalır) | IPFS (Pinata) |
 
 NFT'nin adresi diploma dosyasının özetinden türetilir. Elinde diploma dosyası olan herkes NFT'nin adresini hesaplayıp
 zincirden kontrol edebilir; bunun için hiçbir listeye gerek yoktur.
@@ -88,6 +89,10 @@ Ana ağda yeni bir koleksiyon oluşur (`durum-mainnet.json`). 2 diploma için ya
 Phantom'da Test Ağı Modu'nu kapatıp cüzdana gerçek SOL yükleyin.
 
 ## Notlar
+
+- Pinata'nın ücretsiz planı klasördeki her dosyayı ayrı sayar (yaklaşık 500 dosya). Bu yüzden belge dosyaları sadece
+  gerçek diplomalar için yüklenir; 1000 temsili diploma tek bir ortak metadata dosyasını gösterir. Her birinin kendi
+  VC özeti yine zincirdedir ve `dogrula` komutu bununla çalışır.
 
 - Gerçek diplomaların VC dosyası mezunun adını içerir ve IPFS'te herkese açık olur. Bu prototipteki kişiler temsili
   test verisidir; gerçek sistemde bu dosya şifrelenmeli ya da IPFS'e konmamalıdır.
