@@ -9,7 +9,6 @@ declare namespace Cloudflare {
     APP_ORIGIN?: string;
     CHAIN_RPC?: string;
     NFT_CONTRACT?: string;
-    ANCHOR_CONTRACT?: string;
     CHAIN_ISSUER?: string;
     BUCKET?: R2Bucket;
   }
