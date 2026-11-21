@@ -1,7 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {universityKey,appOrigin} from './credentials';
 import {issueCredential,diplomaCredential,randomId,STATUS_LIST_SIZE} from './vc.mjs';
-import {sha256Hex,vcHash} from './chain.mjs';
+import {sha256Hex,vcHash} from './solana.mjs';
 import {newDiplomaCode} from './workflow.mjs';
 
 // Representative diplomas for the yearly NFT test. They are signed with the university key but NEVER stored:
