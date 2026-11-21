@@ -1,0 +1,9 @@
+cuzdan-anahtari.txt
+*.key
+durum-*.json
+durum-*.tmp
+rapor-*.csv
+DENEME/
+DIPLOMALAR/
+GERCEK/
+__pycache__/
