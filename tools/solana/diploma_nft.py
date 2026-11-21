@@ -9,7 +9,8 @@ Solana'ya basar. Liste zincire girmez; yalnızca bu kodun girdisidir. Bütün i�
   python diploma_nft.py bas     --klasor DIPLOMALAR --anahtar cuzdan-anahtari.txt --ag devnet
   python diploma_nft.py dogrula --klasor DIPLOMALAR --ag devnet
 
-Gereken tek paket: cryptography  (pip install cryptography)
+Gereken paketler: cryptography (zorunlu), truststore (Windows'ta önerilir)
+  pip install cryptography truststore
 
 Her NFT:
   - Koleksiyon: "<Üniversite> - <Yıl> Mezunları" (Metaplex Core koleksiyonu, yetkili = üniversite cüzdanı)
@@ -28,6 +29,12 @@ try:
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 except ImportError:
     sys.exit("Eksik paket: önce  pip install cryptography  komutunu çalıştırın.")
+try:
+    # Windows'un kendi sertifika doğrulamasını kullan (eksik ara sertifikaları ve antivirüs sertifikalarını tanır).
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
 
 CORE_PROGRAM = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
 SYSTEM_PROGRAM = "11111111111111111111111111111111"
@@ -205,6 +212,8 @@ class Rpc:
                 if e.code == 429 and i < tries - 1: time.sleep(2 * (i + 1)); continue
                 raise RuntimeError(f"RPC hatası {e.code}: {e.read()[:200]!r}")
             except (urllib.error.URLError, TimeoutError) as e:
+                if "CERTIFICATE_VERIFY_FAILED" in str(e):
+                    raise SystemExit("Sertifika doğrulanamadı. Şunu çalıştırıp tekrar deneyin:  python -m pip install truststore")
                 if i < tries - 1: time.sleep(2 * (i + 1)); continue
                 raise RuntimeError(f"Solana düğümüne ulaşılamadı: {e}")
     def accounts(self, addresses):
