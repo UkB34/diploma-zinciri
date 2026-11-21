@@ -7,15 +7,14 @@ import {resolve,dirname,extname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {passwordHash} from '../lib/auth-crypto.mjs';
 import * as vc from '../lib/vc.mjs';
-import * as chain from '../lib/chain.mjs';
+import * as chain from '../lib/solana.mjs';
 import {makeZip} from '../lib/zip.mjs';
-const origin='https://test.example',RPC='https://rpc.test';
-const NFT='0x09917f2deb350c50a626158d07017cb77953bb1c',ISSUER='0x15c21b5c00ed0ed37ffe43cc0cde1181c52b2847';
+const origin='https://test.example';
 const sql=new DatabaseSync(':memory:');
 for(const name of readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync(new URL('../drizzle/'+name,import.meta.url),'utf8'));
 const DB={prepare(query){return {args:[],bind(...args){this.args=args;return this;},async first(){return sql.prepare(query).get(...this.args)||null;},async all(){return {results:sql.prepare(query).all(...this.args)};},async run(){const r=sql.prepare(query).run(...this.args);return {meta:{changes:Number(r.changes)}};}};},async batch(stmts){sql.exec('BEGIN');try{const out=[];for(const s of stmts)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};
 globalThis.__env={DB,TEST_ACCOUNTS_JSON:JSON.stringify(await Promise.all([['merkez','central'],['fakulte','faculty']].map(async([username,role])=>({username,role,salt:'s',hash:await passwordHash('pw','s')})))),
- UNIVERSITY_KEY_JSON:JSON.stringify(await vc.generateUniversityKey()),APP_ORIGIN:origin,CHAIN_RPC:RPC,NFT_CONTRACT:NFT,CHAIN_ISSUER:ISSUER};
+ UNIVERSITY_KEY_JSON:JSON.stringify(await vc.generateUniversityKey()),APP_ORIGIN:origin};
 globalThis.__headers=new Headers();
 const cache=new Map();
 function moduleUrl(file){file=resolve(file);if(cache.has(file))return cache.get(file);let source=readFileSync(file,'utf8');source=source.replace(/import\s*\{\s*env\s*\}\s*from\s*['"]cloudflare:workers['"];?/g,'const env=globalThis.__env;').replace(/import\s*\{\s*headers\s*\}\s*from\s*['"]next\/headers['"];?/g,'const headers=async()=>globalThis.__headers;');source=source.replace(/from\s*['"]([^'"]+)['"]/g,(full,spec)=>{if(!spec.startsWith('.'))return full;let dep=resolve(dirname(file),spec);if(!extname(dep))dep+='.ts';return 'from '+JSON.stringify(dep.endsWith('.ts')?moduleUrl(dep):pathToFileURL(dep).href);});source=source.replace(/await import\('\.\/chain\.mjs'\)/g,'await import('+JSON.stringify(pathToFileURL(resolve(dirname(file),'chain.mjs')).href)+')');const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;const url='data:text/javascript;base64,'+Buffer.from(compiled).toString('base64');cache.set(file,url);return url;}

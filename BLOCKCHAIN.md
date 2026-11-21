@@ -1,29 +1,36 @@
-# 2. aşama: Blokzincir kaydı (Sepolia, NFT)
+# 2. aşama: Blokzincir kaydı (Solana)
 
-Dört VC onayı tamamlanan diplomalar Sepolia'ya **devredilemez NFT** olarak kaydedilir. Test aşamasında denenen Merkle kökü yöntemi kaldırıldı; ölçüm sayfası ve ölçüm verileri silindi.
+Dört VC onayı tamamlanan diplomalar Solana'da tek bir koleksiyonun ayrı parçaları (NFT) olarak kaydedilir. Liste
+zincire girmez; yalnızca basım kodunun girdisidir. Önceki Sepolia denemesi kaldırıldı (eski NFT'ler zincirde durur,
+site artık onları kullanmaz).
 
 | | |
 |---|---|
-| Sözleşme | `contracts/DiplomaNFT.sol` (ERC-721 + ERC-5192 soulbound) |
-| Sepolia adresi | `0x09917F2dEb350c50a626158d07017CB77953bB1C` |
-| Üniversite cüzdanı (tek yetkili) | `0x15C21B5c00Ed0eD37ffE43cc0CDE1181c52b2847` |
-| Zincire yazılan | Her diploma için bir token ve diploma VC'sinin SHA-256 özeti |
-| İptal | `revoke(tokenId)` |
+| Ağ | Solana devnet |
+| Standart | Metaplex Core (`CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d`) |
+| Koleksiyon | Örnek Üniversite - 2026 Mezunları · `DsiuZbshd7sBqCuR2hCGiMcBR6g4arWFDBDAmUVb2Kis` |
+| Yetkili (üniversite cüzdanı) | `GFdrrpvhgxQnGkB6hDyqNNYDcmFHmDKdLn4f4sqrzaXp` |
+| Basılan | 1002 NFT (2 gerçek, 1000 temsili) |
+| Zincirde her NFT'de | `VC SHA-256`, `Durum`, `Yıl`, `Tür`, `Düzenleyen` (Attributes) · kalıcı dondurma (devredilemez) |
+| İçerik | IPFS (Pinata): gerçek diplomaların belge dosyası ve metadata; temsili diplomalar ortak metadata |
 
-Zincirde kişisel veri yoktur. Eski Merkle sözleşmesi (`0x871C9551…`) zincirde durur ama uygulama artık onu kullanmaz.
+## Basım
 
-## Nasıl çalışır?
+`tools/solana/diploma_nft.py` (ayrıntılar `tools/solana/BENIOKU.md`). Diploma VC dosyalarını okur, işlemi ücretsiz
+simüle eder, tek onayla koleksiyonu ve NFT'leri basar. Üniversite cüzdanının anahtarı yalnızca bu kodu çalıştıran
+bilgisayarda durur; sunucuda yoktur.
 
-- `tokenId` = diploma kodundaki 20 haneli onaltılık sayı (`TEST-…`). Aynı diploma iki kez basılamaz.
-- Özet = SHA-256(diploma VC JWT). NFT sözleşmesinde `credentialHash` olarak tutulur.
-- Kaydı **merkez yetkilisi MetaMask ile** imzalar: dosya ekranındaki "Blokzincir (Sepolia)" bölümünde **NFT olarak kaydet**. Özel anahtar sunucuda bulunmaz.
-- Sunucu, işlemin doğru sözleşmeye ve hazırladığı içerikle (calldata özeti) gittiğini makbuzdan kontrol etmeden kaydı kabul etmez.
-- Diploma ve `/dogrula` sayfaları sonucu **tarayıcıdan doğrudan Sepolia düğümüne** sorar (eth_call); sunucuya güvenmek gerekmez.
-- Cüzdanlar için metadata `/api/nft/<tokenId>`, rozet görseli `/api/nft-image/<tokenId>` adresindedir.
+## Doğrulama
 
-## Kurulum notları
+NFT adresi = ed25519(SHA-256(`diploma-zinciri:asset:v1:` ‖ koleksiyon ‖ VC özeti)). Elinde diploma dosyası olan
+herkes adresi hesaplayıp zincirden okuyabilir; sunucuya ve bir listeye gerek yoktur. Kontrol edilenler: hesap
+Metaplex Core'a ait mi, NFT bu koleksiyonda mı, koleksiyonun yetkilisi üniversite cüzdanı mı, özet eşleşiyor mu,
+NFT devredilemez mi, durum "Geçerli" mi.
 
-- `drizzle/0004_chain.sql` → `chain_batches`, `chain_records`. `drizzle/0005_nft_only.sql` → test verilerini ve Merkle kayıtlarını siler. Deploy iş akışı bunları otomatik uygular.
-- `wrangler.json` → `CHAIN_RPC`, `NFT_CONTRACT`, `CHAIN_ISSUER` (herkese açık değerler, secret değil).
-- EIP-7825 nedeniyle bir işlem en fazla ~16,7 milyon gas kullanabilir. Tek diploma kaydı ~230–260 bin gas olduğundan sorun yoktur; toplu basım eklenirse paket ~60 diplomayı geçmemelidir.
-- Alan adı değişirse sözleşme yeni DID ve metadata adresiyle yeniden yayınlanmalı (Sepolia'da ücretsiz).
+- `lib/solana.mjs`: adres türetme, hesap okuma ve kurallar (tarayıcı ve testler aynı kodu kullanır).
+- Diploma sayfası ve dosya ekranı: diplomanın NFT durumu.
+- `/dogrula`: VC dosyası yüklenince NFT durumu; **Klasörü toplu doğrula** ile bütün bir klasör tek seferde.
+- Komut satırı: `python diploma_nft.py dogrula --klasor DIPLOMALAR --ag devnet`.
+
+Not: Adresler herkesin hesaplayabileceği şekilde türetildiği için biri bir adresi önceden doldurarak basımı
+engelleyebilir; sahte NFT üretemez, çünkü doğrulama koleksiyonu ve özeti kontrol eder.

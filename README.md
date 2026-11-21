@@ -1,6 +1,6 @@
-# 2. aşama: Blokzincir kaydı (Sepolia)
+# 2. aşama: Blokzincir kaydı (Solana)
 
-Onaylanan diplomalar Sepolia'ya devredilemez (soulbound) NFT olarak kaydediliyor. Ayrıntılar için [BLOCKCHAIN.md](BLOCKCHAIN.md) dosyasına bakın.
+Onaylanan diplomalar Solana'da bir Metaplex Core koleksiyonunun devredilemez parçaları (NFT) olarak kaydediliyor. Ayrıntılar için [BLOCKCHAIN.md](BLOCKCHAIN.md) dosyasına bakın.
 
 # V3: Doğrulanabilir Dijital Kimlik (VC)
 
@@ -20,7 +20,7 @@ Mezuniyet dosyalarının ayrı yetkili hesaplarıyla sırayla onaylandığı, or
 - Yeni belge sürümünde onayların yeniden alınması.
 - İşlem geçmişinde öğrenci listesi; seçilen öğrencinin yalnızca kendi dosya geçmişi. Aynı adlar öğrenci/dosya numarasıyla ayrılır.
 - Ortak D1 veritabanı, eşzamanlı değişiklik kontrolü, oturum sonlandırma.
-- Tarayıcı cüzdanı (did:jwk) ve Yetkili Onaycı VC'si ile birim onayı; üniversite DID'i (did:web) ile imzalı diploma VC'si; imzalı iptal listesi. Onaylı diplomalar Sepolia test ağına NFT olarak kaydedilir. Nitelikli e-imza bağlı değildir.
+- Tarayıcı cüzdanı (did:jwk) ve Yetkili Onaycı VC'si ile birim onayı; üniversite DID'i (did:web) ile imzalı diploma VC'si; imzalı iptal listesi. Onaylı diplomalar Solana test ağına NFT olarak kaydedilir. Nitelikli e-imza bağlı değildir.
 - Yeni sitenin adresine göre oluşturulan Windows masaüstü kısayolu.
 
 ## Çalışma yapısı

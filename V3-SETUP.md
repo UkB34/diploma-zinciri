@@ -51,5 +51,5 @@ Bir yetkilinin kimliği sonradan iptal edilirse (ör. tarayıcı değişikliği)
 - Üniversite anahtarı sunucuda durur. Bu doğaldır, çünkü düzenleyen kurum odur. Yetkili anahtarları ise sunucuda **değildir**: sunucu bir yetkili adına onay üretemez.
 - Bir yetkili olarak onay verebilmek için üç şey birden gerekir: hesap parolası, hesabın e-posta kutusu (davet bağlantısı) ve kimliğin kayıtlı olduğu tarayıcı.
 - Parolası ele geçirilen biri kendi tarayıcısını bağlayabilir. Bu durumda gerçek sahibe e-posta bildirimi gider ve önceki kimlik iptal edilir. Davetler yine e-posta kutusuna gittiği için tek başına onay veremez.
-- `did:web` alan adına bağlıdır; alan adını kontrol eden kişi DID belgesini değiştirebilir. 2. aşamada diploma VC özetinin Sepolia'ya yazılması bu riski azaltacak.
+- `did:web` alan adına bağlıdır; alan adını kontrol eden kişi DID belgesini değiştirebilir. Diploma VC özetinin Solana'daki NFT'de tutulması bu riski azaltır.
 - Tarayıcı verileri silinirse anahtar kaybolur; yetkili kimliğini yeniden bağlar. Bu prototip nitelikli elektronik imza, TÜBİTAK entegrasyonu ya da resmî diploma değildir.
