@@ -22,7 +22,7 @@ export default function Mezunlar(){
  const [data,setData]=useState<any>(null),[status,setStatus]=useState<Record<number,any>>({}),[error,setError]=useState('');
  useEffect(()=>{fetch('/api/mezunlar',{cache:'no-store'}).then(async r=>{
   if(r.status===401){setData({login:true});return;}
-  const d=await r.json();setData(d);
+  const d:any=await r.json();setData(d);
   const years=[...new Set<number>(d.graduates.map((g:Grad)=>g.year))];
   for(const y of years){
    const coll=(COLLECTIONS as Record<number,string>)[y];
